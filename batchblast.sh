@@ -244,7 +244,7 @@ else
 
 				yell "${step} Blasting ${x} ...";
 
-				timeout --foreground 5m blastn -db nt -query $x -remote -max_target_seqs=10 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
+				timeout --foreground 5m blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
 
 			#	yell "${step} Exit code: $?"; 
 			
@@ -260,7 +260,7 @@ else
 		
 				yell "${step} Blasting ${x} ...";
 
-				timeout --foreground 5m blastn -db nt -query $x -remote -max_target_seqs=10 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
+				timeout --foreground 5m blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
 
 			#	yell "${step} Exit code: $?"; 
 			
