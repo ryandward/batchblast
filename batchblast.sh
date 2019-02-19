@@ -210,7 +210,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
 				else
 
 					yell "${step} Blasting ${x} ...";
-					timeout --foreground 5m blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
+					 blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
 				fi
 			else
 
@@ -218,7 +218,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
 				if [ "$outsize" = "0" ] ; then
 					yell "${step} Found ${outfile} size: ${outsize}. Attempting to fix ... "
 					yell "${step} Blasting ${x} ...";
-					timeout --foreground 5m blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
+					 blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
 					newoutsize=$(du $outfile | cut -f1);
 					if [ "$newoutsize" = "0" ] ; then
 						yell "${step} ${outfile} was unable to complete ... "
