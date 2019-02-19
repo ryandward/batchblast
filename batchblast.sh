@@ -110,8 +110,8 @@ if [ $INPUT = "ab1" ] ; then
 
 		do
 			outfile="$(basename "$x" .ab1).fq"
-			insize=$(du -b $x | cut -f1);
-			#insize=$(du -b $x | cut -f1);;
+			insize=$(du $x | cut -f1);
+			#insize=$(du $x | cut -f1);;
 			if [ ! -f $outfile ] ; then
 				if [ "$insize" = "0" ] ; then
 					die "${step} ${x} file is zero length, incomplete or corrupt data.";
@@ -119,7 +119,7 @@ if [ $INPUT = "ab1" ] ; then
 					yell "${step} Converting ${x} to FASTQ format: ${outfile}" && try seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} > ${outfile};
 				fi
 			fi
-			outsize=$(du -b $outfile | cut -f1);
+			outsize=$(du $outfile | cut -f1);
 			if [ "$outsize" = "0" ] ; then
 				yell "${step} ${outfile} is zero length, incomplete or corrupt conversion. Re-attempting ...";
 				try seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} > ${outfile};
@@ -144,7 +144,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
 
 		do
 			outfile="$(basename "$x" .fq).clean.fq"
-			insize=$(du -b $x | cut -f1);
+			insize=$(du $x | cut -f1);
 			if [ ! -f $outfile ] ; then
 				if [ "$insize" = "0" ] ; then
 					die "${step} ${x} file is zero length, incomplete or corrupt data.";
@@ -152,11 +152,11 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
 					try java -jar ${trimfile} SE -phred64 ${x} ${outfile} LEADING:14 TRAILING:14 2>/dev/null;
 				fi
 			fi
-			outsize=$(du -b $outfile | cut -f1);
+			outsize=$(du $outfile | cut -f1);
 			if [ "$outsize" = "0" ] ; then
 				yell "${step} ${outfile} is zero length, incomplete, corrupt conversion, or very low quality data ... Re-attempting trimmomatic ...";
 				try java -jar ${trimfile} SE -phred64 ${x} ${outfile} LEADING:14 TRAILING:14 2>/dev/null;
-				newoutsize=$(du -b $outfile | cut -f1);
+				newoutsize=$(du $outfile | cut -f1);
 				if [ "$newoutsize" = "0" ] ; then
 					yell "${step} ${outfile} did not survive trimming ..."
 					count=$((count-1));
@@ -181,7 +181,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
 
 		do
 			outfile="$(basename "$x" .clean.fq).fa"
-			insize=$(du -b $x | cut -f1);
+			insize=$(du $x | cut -f1);
 			if [ $insize != "0" ];
 			then
 				paste - - - - < ${x} | cut -f 1,2 | sed 's/^@/>/' | tr "\t" "\n" > ${outfile};
@@ -203,7 +203,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
 
 		do
 			outfile="$(basename "$x" .fa).blast.tsv"
-			insize=$(du -b $x | cut -f1);
+			insize=$(du $x | cut -f1);
 			if [ ! -f $outfile ] ; then
 				if [ "$insize" = "0" ] ; then
 					yell "${step} ${x} FASTA size zero --> QC fail.";
@@ -214,12 +214,12 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
 				fi
 			else
 
-				outsize=$(du -b $outfile | cut -f1);
+				outsize=$(du $outfile | cut -f1);
 				if [ "$outsize" = "0" ] ; then
 					yell "${step} Found ${outfile} size: ${outsize}. Attempting to fix ... "
 					yell "${step} Blasting ${x} ...";
 					timeout --foreground 5m blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
-					newoutsize=$(du -b $outfile | cut -f1);
+					newoutsize=$(du $outfile | cut -f1);
 					if [ "$newoutsize" = "0" ] ; then
 						yell "${step} ${outfile} was unable to complete ... "
 					else
