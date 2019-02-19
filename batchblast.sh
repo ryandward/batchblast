@@ -2,6 +2,12 @@ yell() { printf "[%s\n" "${0##*/}] $*" | tr -s / >&2; }
 die() { yell "$*"; exit 111; }
 try() { (yell "attempting: $*" && "$@" )  || die "failed to complete: $*"; }
 probe(){ command -v "$@" >/dev/null 2>&1 && yell "Found $*" at \"$(which "$*")\" ...||  die >&2 "This script requires \""$*"\", but it's not installed. Aborting ..."; }
+realpath() {
+    [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
+}
+
+realpath "$0"
+
 body () {
 	IFS= read -r header
 	printf '%s\n' "$header"
@@ -63,7 +69,7 @@ STRAIN_DEFINITIONS=/home/ryanward/Dropbox/Pietrasiak/JGI_strains.csv
 probe seqret;
 probe blastn;
 probe git;
-probe realpath;
+
 sel=`ls -1 **/sel.awk  2>/dev/null | wc -l`
 if [ $sel = 0 ];
 then
