@@ -1,7 +1,7 @@
 yell() { printf "[%s\n" "${0##*/}] $*" | tr -s / >&2; }
 die() { yell "$*"; exit 111; }
-try() { (yell "attempting: $*" && "$@" )  || die "failed to complete: $*"; }
-probe(){ command -v "$@" >/dev/null 2>&1 && yell "Found $*" at \"$(which "$*")\" ...||  die >&2 "This script requires \""$*"\", but it's not installed. Aborting ..."; }
+try() { (yell "Attempting: $*" && "$@" )  || die "Failed to complete: $*"; }
+probe(){ command -v "$@" >/dev/null 2>&1 && yell "Found $*" at \"$(which "$*")\" ||  die >&2 "This script requires \""$*"\", but it's not installed. Aborting ..."; }
 realpath() {
   [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
 }
@@ -66,9 +66,14 @@ exit_abnormal
 esac
 done
 STRAIN_DEFINITIONS=/home/ryanward/Dropbox/Pietrasiak/JGI_strains.csv
+probe perl;
+yell $(perl -e 'print $];') | perl -pe 'chomp if eof'
 probe seqret;
+yell $(seqret --version) | perl -pe 'chomp if eof'
 probe blastn;
+yell $(blastn -version) | perl -pe 'chomp if eof'
 probe git;
+yell $(git --version) | perl -pe 'chomp if eof'
 
 sel=`ls -1 **/sel.awk  2>/dev/null | wc -l | tr -d ' '`
 if [ $sel = 0 ];
@@ -184,7 +189,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
       insize=$(cat $x | wc -l | tr -d ' ');
       if [ $insize != "0" ];
       then
-        try paste - - - - < ${x} | cut -f 1,2 | sed 's/^@/>/' | tr "\t" "\n" > ${outfile};
+	      paste - - - - < ${x} | cut -f 1,2 | sed 's/^@/>/' | tr "\t" "\n" > ${outfile};
       fi
     done;
   fi
