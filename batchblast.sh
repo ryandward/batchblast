@@ -70,7 +70,7 @@ probe seqret;
 probe blastn;
 probe git;
 
-sel=`ls -1 **/sel.awk  2>/dev/null | wc -l`
+sel=`ls -1 **/sel.awk  2>/dev/null | wc -l | tr -d ' '`
 if [ $sel = 0 ];
 then
 	yell "Sel not found ... Getting it for you ...";
@@ -82,7 +82,7 @@ else
 	selfile=$(realpath $(ls **/sel.awk));
 	yell "Found sel at \"${selfile}\" ...";
 fi
-trim=`ls -1 **/*trimmomatic*jar  2>/dev/null | wc -l`
+trim=`ls -1 **/*trimmomatic*jar  2>/dev/null | wc -l | tr -d ' '`
 if [ $trim = 0 ];
 then
 	yell "Trimmomatic not found ... Getting it for you ...";
@@ -98,7 +98,7 @@ else
 fi
 if [ $INPUT = "ab1" ] ; then
 	step="EMBOSS:";
-	count=`ls -1 *.ab1  2>/dev/null | wc -l`
+	count=`ls -1 *.ab1  2>/dev/null | wc -l | tr -d ' '`
 	if [ $count = 0 ]
 
 	then
@@ -131,7 +131,7 @@ if [ $INPUT = "ab1" ] ; then
 fi
 if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
 	step="TRIMMOMATIC:"
-	count=`ls -1 *.fq | grep -v *clean.fq  2>/dev/null | wc -l`
+	count=`ls -1 *.fq | grep -v *clean.fq  2>/dev/null | wc -l | tr -d ' '`
 	if [ $count = 0 ]
 
 	then
@@ -168,7 +168,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
 	fi
 	pretrimcount=$count;
 	step="PASTE:"
-	count=`ls -1 *.clean.fq  2>/dev/null | wc -l`
+	count=`ls -1 *.clean.fq  2>/dev/null | wc -l | tr -d ' '`
 	if [ $count = 0 ]
 
 	then
@@ -191,7 +191,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
 fi
 if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
 	step="BLASTN:";
-	count=`ls -1 *.fa  2>/dev/null | wc -l`
+	count=`ls -1 *.fa  2>/dev/null | wc -l | tr -d ' '`
 	if [ $count = 0 ]
 
 	then
