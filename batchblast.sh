@@ -110,8 +110,8 @@ if [ $INPUT = "ab1" ] ; then
 
 		do
 			outfile="$(basename "$x" .ab1).fq"
-			insize=$(du $x | cut -f1);
-			#insize=$(du $x | cut -f1);;
+			insize=$(cat $x | wc -l);
+			#insize=$(cat $x | wc -l);;
 			if [ ! -f $outfile ] ; then
 				if [ "$insize" = "0" ] ; then
 					die "${step} ${x} file is zero length, incomplete or corrupt data.";
@@ -119,7 +119,7 @@ if [ $INPUT = "ab1" ] ; then
 					yell "${step} Converting ${x} to FASTQ format: ${outfile}" && try seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} > ${outfile};
 				fi
 			fi
-			outsize=$(du $outfile | cut -f1);
+			outsize=$(cat $outfile | wc -l);
 			if [ "$outsize" = "0" ] ; then
 				yell "${step} ${outfile} is zero length, incomplete or corrupt conversion. Re-attempting ...";
 				try seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} > ${outfile};
@@ -144,7 +144,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
 
 		do
 			outfile="$(basename "$x" .fq).clean.fq"
-			insize=$(du $x | cut -f1);
+			insize=$(cat $x | wc -l);
 			if [ ! -f $outfile ] ; then
 				if [ "$insize" = "0" ] ; then
 					die "${step} ${x} file is zero length, incomplete or corrupt data.";
@@ -152,11 +152,11 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
 					try java -jar ${trimfile} SE -phred64 ${x} ${outfile} LEADING:14 TRAILING:14 2>/dev/null;
 				fi
 			fi
-			outsize=$(du $outfile | cut -f1);
+			outsize=$(cat $outfile | wc -l);
 			if [ "$outsize" = "0" ] ; then
 				yell "${step} ${outfile} is zero length, incomplete, corrupt conversion, or very low quality data ... Re-attempting trimmomatic ...";
 				try java -jar ${trimfile} SE -phred64 ${x} ${outfile} LEADING:14 TRAILING:14 2>/dev/null;
-				newoutsize=$(du $outfile | cut -f1);
+				newoutsize=$(cat $outfile | wc -l);
 				if [ "$newoutsize" = "0" ] ; then
 					yell "${step} ${outfile} did not survive trimming ..."
 					count=$((count-1));
@@ -181,7 +181,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
 
 		do
 			outfile="$(basename "$x" .clean.fq).fa"
-			insize=$(du $x | cut -f1);
+			insize=$(cat $x | wc -l);
 			if [ $insize != "0" ];
 			then
 				paste - - - - < ${x} | cut -f 1,2 | sed 's/^@/>/' | tr "\t" "\n" > ${outfile};
@@ -203,7 +203,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
 
 		do
 			outfile="$(basename "$x" .fa).blast.tsv"
-			insize=$(du $x | cut -f1);
+			insize=$(cat $x | wc -l);
 			if [ ! -f $outfile ] ; then
 				if [ "$insize" = "0" ] ; then
 					yell "${step} ${x} FASTA size zero --> QC fail.";
@@ -214,12 +214,12 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
 				fi
 			else
 
-				outsize=$(du $outfile | cut -f1);
+				outsize=$(cat $outfile | wc -l);
 				if [ "$outsize" = "0" ] ; then
 					yell "${step} Found ${outfile} size: ${outsize}. Attempting to fix ... "
 					yell "${step} Blasting ${x} ...";
 					 blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
-					newoutsize=$(du $outfile | cut -f1);
+					newoutsize=$(cat $outfile | wc -l);
 					if [ "$newoutsize" = "0" ] ; then
 						yell "${step} ${outfile} was unable to complete ... "
 					else
@@ -237,8 +237,8 @@ step="POST-PROCESS:"
 echo "#q_sampleid,#q_primer,#q_seqid,#s_title,#s_acc,#s_seqid,#pident,#q_length,#s_length,#evalue,#bitscore,#q_genus,#q_species,#q_strain" > blast_out.csv;
 yell "${step} Concatenating results ..."
 try cat *tsv 2>/dev/null | sed 's/\,//g' | sed 's/\;//g' | sed 's/\t/,/g' >> blast_out.csv;
-yell "${step} Extracting relevant information from results ..."
-try cat blast_out.csv 2>/dev/null | try body awk -vFS=, -vOFS=, '(NR!=1){match($1,/_([0-9]{1,2})[A-z]?_Pri/,sample);match ($1,/(Primer.*)/,primer); { print sample[1], primer[1],$0}}' > tmp.csv
-yell $"${step} Using ${STRAIN_DEFINITIONS} as source to extract query submission genus and species ..."
-try awk -vFS=, -vOFS=, '(NR==FNR){gen[$1]=$2;spec[$1]=$3;strain[$1]=$4;next;} (NR!=FNR) {if(FNR==1) print $0} {if(FNR!=1){print $0,gen[$1],spec[$1],strain[$1]} }' ${STRAIN_DEFINITIONS} tmp.csv > blast_out.csv 2>/dev/null && try rm tmp.csv 2>/dev/null
-paste -d, <( ${selfile} "col=q_sampleid,q_primer,q_genus,q_species,q_strain" blast_out.csv) <( ${selfile}  "col=s_" blast_out.csv) > tmp.csv
+#yell "${step} Extracting relevant information from results ..."
+#try cat blast_out.csv 2>/dev/null | try body awk -vFS=, -vOFS=, '(NR!=1){match($1,/_([0-9]{1,2})[A-z]?_Pri/,sample);match ($1,/(Primer.*)/,primer); { print sample[1], primer[1],$0}}' > tmp.csv
+#yell $"${step} Using ${STRAIN_DEFINITIONS} as source to extract query submission genus and species ..."
+#try awk -vFS=, -vOFS=, '(NR==FNR){gen[$1]=$2;spec[$1]=$3;strain[$1]=$4;next;} (NR!=FNR) {if(FNR==1) print $0} {if(FNR!=1){print $0,gen[$1],spec[$1],strain[$1]} }' ${STRAIN_DEFINITIONS} tmp.csv > blast_out.csv 2>/dev/null && try rm tmp.csv 2>/dev/null
+#paste -d, <( ${selfile} "col=q_sampleid,q_primer,q_genus,q_species,q_strain" blast_out.csv) <( ${selfile}  "col=s_" blast_out.csv) > tmp.csv
