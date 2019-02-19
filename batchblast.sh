@@ -124,7 +124,7 @@ if [ $INPUT = "ab1" ] ; then
 				yell "${step} ${outfile} is zero length, incomplete or corrupt conversion. Re-attempting ...";
 				try seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} > ${outfile};
 			else
-				yell "${step} Found ${outfile} size: ${outsize} ...";
+				yell "${step} Found ${outfile}, size: ${outsize} lines ...";
 			fi
 		done;
 	fi
@@ -162,7 +162,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
 					count=$((count-1));
 				fi
 			else
-				yell "${step} Found ${outfile} size: ${outsize} ...";
+				yell "${step} Found ${outfile}, size: ${outsize} lines ...";
 			fi
 		done;
 	fi
@@ -176,7 +176,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
 	else
 
 		yell "${step} Found ${pretrimcount} out of ${count}  that survived trimming, low quality files are zero-length ..."
-		yell "${step} Converting from FASTQ to FASTA, all reads above 0.05 p-value."
+		yell "${step} Converting from FASTQ to FASTA, all reads below 0.05 p-value."
 		for x in $(ls *clean.fq);
 
 		do
@@ -216,7 +216,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
 
 				outsize=$(cat $outfile | wc -l | tr -d ' ');
 				if [ "$outsize" = "0" ] ; then
-					yell "${step} Found ${outfile} size: ${outsize}. Attempting to fix ... "
+					yell "${step} Found ${outfile}, size: ${outsize} lines. Attempting to fix ... "
 					yell "${step} Blasting ${x} ...";
 					 blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
 					newoutsize=$(cat $outfile | wc -l | tr -d ' ');
@@ -224,10 +224,10 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
 						yell "${step} ${outfile} was unable to complete ... "
 					else
 
-						yell "${step} Completed ${outfile} size: ${newoutsize} ...";
+						yell "${step} Completed ${outfile}, size: ${newoutsize} lines ...";
 					fi
 				else
-					yell "${step} Found ${outfile} size: ${outsize} ...";
+					yell "${step} Found ${outfile}, size: ${outsize} lines ...";
 				fi
 			fi
 		done;
@@ -237,6 +237,7 @@ step="POST-PROCESS:"
 echo "#q_sampleid,#q_primer,#q_seqid,#s_title,#s_acc,#s_seqid,#pident,#q_length,#s_length,#evalue,#bitscore,#q_genus,#q_species,#q_strain" > blast_out.csv;
 yell "${step} Concatenating results ..."
 try cat *tsv 2>/dev/null | sed 's/\,//g' | sed 's/\;//g' | sed 's/	/,/g' >> blast_out.csv;
+yell "${step} Blast results located at \"blast_out.csv\".";
 #yell "${step} Extracting relevant information from results ..."
 #try cat blast_out.csv 2>/dev/null | try body awk -vFS=, -vOFS=, '(NR!=1){match($1,/_([0-9]{1,2})[A-z]?_Pri/,sample);match ($1,/(Primer.*)/,primer); { print sample[1], primer[1],$0}}' > tmp.csv
 #yell $"${step} Using ${STRAIN_DEFINITIONS} as source to extract query submission genus and species ..."
