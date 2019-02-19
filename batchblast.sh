@@ -131,7 +131,7 @@ if [ $INPUT = "ab1" ] ; then
 fi
 if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
 	step="TRIMMOMATIC:"
-	count=`ls -1 *.fq | grep -I *clean.fq  2>/dev/null | wc -l`
+	count=`ls -1 *.fq | grep -v *clean.fq  2>/dev/null | wc -l`
 	if [ $count = 0 ]
 
 	then
