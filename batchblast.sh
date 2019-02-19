@@ -236,7 +236,7 @@ fi
 step="POST-PROCESS:"
 echo "#q_sampleid,#q_primer,#q_seqid,#s_title,#s_acc,#s_seqid,#pident,#q_length,#s_length,#evalue,#bitscore,#q_genus,#q_species,#q_strain" > blast_out.csv;
 yell "${step} Concatenating results ..."
-try cat *tsv 2>/dev/null | sed 's/\,//g' | sed 's/\;//g' | sed 's/\t/,/g' >> blast_out.csv;
+try cat *tsv 2>/dev/null | sed 's/\,//g' | sed 's/\;//g' | sed 's/	/,/g' >> blast_out.csv;
 #yell "${step} Extracting relevant information from results ..."
 #try cat blast_out.csv 2>/dev/null | try body awk -vFS=, -vOFS=, '(NR!=1){match($1,/_([0-9]{1,2})[A-z]?_Pri/,sample);match ($1,/(Primer.*)/,primer); { print sample[1], primer[1],$0}}' > tmp.csv
 #yell $"${step} Using ${STRAIN_DEFINITIONS} as source to extract query submission genus and species ..."
