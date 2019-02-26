@@ -1,3 +1,5 @@
+max_target_seqs=20;
+
 yell() { printf "[%s\n" "${0##*/}] $*" | tr -s / >&2; }
 die() { yell "$*"; exit 111; }
 try() { (yell "Attempting: $*" && "$@" )  || die "Failed to complete: $*"; }
@@ -67,13 +69,13 @@ esac
 done
 STRAIN_DEFINITIONS=/home/ryanward/Dropbox/Pietrasiak/JGI_strains.csv
 probe perl;
-yell $(perl -e 'print $];') | perl -pe 'chomp if eof'
+#yell $(perl -e 'print $];') | perl -pe 'chomp if eof'
 probe seqret;
-yell $(seqret --version) | perl -pe 'chomp if eof'
+#yell '\r\n' $(seqret --version) | perl -pe 'chomp if eof'
 probe blastn;
-yell $(blastn -version) | perl -pe 'chomp if eof'
+#yell $(blastn -version) | perl -pe 'chomp if eof'
 probe git;
-yell $(git --version) | perl -pe 'chomp if eof'
+#yell $(git --version) | perl -pe 'chomp if eof'
 
 sel=`ls -1 **/sel.awk  2>/dev/null | wc -l | tr -d ' '`
 if [ $sel = 0 ];
@@ -220,15 +222,15 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
         else
 
           yell "${step} Blasting ${x}.";
-          blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
+          blastn -db nt -query $x -remote -max_target_seqs=${max_target_seqs} -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
         fi
       else
 
         outsize=$(cat $outfile | wc -l | tr -d ' ');
-        if [ "$outsize" = "0" ] ; then
+        if [ "$outsize" = "0" ] || [ "$outsize" != $max_target_seqs ] ; then
           yell "${step} Found ${outfile}, size: ${outsize} lines. Attempting to fix."
           yell "${step} Blasting ${x}.";
-          blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
+          blastn -db nt -query $x -remote -max_target_seqs=${max_target_seqs} -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
           newoutsize=$(cat $outfile | wc -l | tr -d ' ');
           if [ "$newoutsize" = "0" ] ; then
             yell "${step} ${outfile} was unable to complete."
@@ -243,11 +245,37 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
     done;
   fi
 fi
-step="POST-PROCESS:"
-echo "#q_sampleid,#q_primer,#q_seqid,#s_title,#s_acc,#s_seqid,#pident,#q_length,#s_length,#evalue,#bitscore,#q_genus,#q_species,#q_strain" > blast_out.csv;
-yell "${step} Concatenating results."
-try cat *tsv 2>/dev/null | sed 's/\,//g' | sed 's/\;//g' | sed 's/	/,/g' >> blast_out.csv;
-yell "${step} Blast results located at \"blast_out.csv\".";
+  
+
+  step="POST-PROCESS:"
+  count=`ls -1 *.tsv 2>/dev/null | wc -l | tr -d ' '`
+  fa_count=`ls -1 *.fa 2>/dev/null | wc -l | tr -d ' '`
+  next_status="Found:"
+
+  if [ $count != $fa_count ]
+
+  then
+    next_status="Error:";
+    die "${step} ${next_status} Quantity mismatch of output (.tsv) and input (.fa) files. Please rerun this script."
+  else
+    for x in $(ls *tsv);
+    do
+      outfile="$(basename "$x" .tsv).fa"
+      insize=$(cat $x | wc -l | tr -d ' ');
+      if [ ! -f $outfile ] ; then
+        if [ "$insize" -lt "$max_target_seqs" ] ; then
+          next_status="Error:";
+	  die "${step} ${x} output (.tsv) is not ${max_target_seqs} in length, incomplete or corrupt data. Rerun this script.";
+	fi
+      fi
+    done;
+    
+yell "${step} ${next_status} ${count} files with .tsv extension."
+    echo "#q_sampleid,#q_primer,#q_seqid,#s_title,#s_acc,#s_seqid,#pident,#q_length,#s_length,#evalue,#bitscore,#q_genus,#q_species,#q_strain" > blast_out.csv;
+    yell "${step} Concatenating results."
+    try cat *tsv 2>/dev/null | sed 's/\,//g' | sed 's/\;//g' | sed 's/	/,/g' >> blast_out.csv;
+    yell "${step} Blast results located at \"blast_out.csv\".";
+  fi
 #yell "${step} Extracting relevant information from results ..."
 #try cat blast_out.csv 2>/dev/null | try body awk -vFS=, -vOFS=, '(NR!=1){match($1,/_([0-9]{1,2})[A-z]?_Pri/,sample);match ($1,/(Primer.*)/,primer); { print sample[1], primer[1],$0}}' > tmp.csv
 #yell $"${step} Using ${STRAIN_DEFINITIONS} as source to extract query submission genus and species ..."
