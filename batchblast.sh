@@ -1,9 +1,10 @@
 max_target_seqs=20;
+next_status="SETUP:";
 
 yell() { printf "[%s\n" "${0##*/}] $*" | tr -s / >&2; }
 die() { yell "$*"; exit 111; }
 try() { (yell "Attempting: $*" && "$@" )  || die "Failed to complete: $*"; }
-probe(){ command -v "$@" >/dev/null 2>&1 && yell "Found $*" at \"$(which "$*")\" ||  die >&2 "This script requires \""$*"\", but it's not installed. Aborting!"; }
+probe(){ command -v "$@" >/dev/null 2>&1 && yell "${next_status} Found $*" at \"$(which "$*")\" ||  die >&2 "${next_status} This script requires \""$*"\", but it's not installed. Aborting!"; }
 realpath() {
   [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
 }
@@ -18,6 +19,7 @@ body () {
 usage() {
 
 die "Usage: $0 [ -i INPUT (ab1, fasta, fastq) ]" 1>&2
+
 }
 exit_abnormal() {
 
@@ -59,7 +61,7 @@ fi
 ;;
 
 :)
-echo "Error: -${OPTARG} requires an argument."
+yell "Error: -${OPTARG} requires an argument."
 exit_abnormal
 ;;
 *)
@@ -80,28 +82,28 @@ probe git;
 sel=`ls -1 **/sel.awk  2>/dev/null | wc -l | tr -d ' '`
 if [ $sel = 0 ];
 then
-  yell "Sel not found...Getting it for you ...";
+  yell "${next_status} Sel not found...Getting it for you.";
 
   try git clone https://github.com/ryandward/sel.git;
   selfile=$(realpath $(ls **/sel.awk));
-  yell "Sel is now at \"${selfile}\" ..."
+  yell "${next_status} Sel is now at \"${selfile}\"."
 else
   selfile=$(realpath $(ls **/sel.awk));
-  yell "Found sel at \"${selfile}\" ...";
+  yell "${next_status} Found sel at \"${selfile}\".";
 fi
 trim=`ls -1 **/*trimmomatic*jar  2>/dev/null | wc -l | tr -d ' '`
 if [ $trim = 0 ];
 then
-  yell "Trimmomatic not found...Getting it for you ...";
+  yell "Trimmomatic not found...Getting it for you.";
 
   try wget http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.38.zip;
   try unzip Trimmomatic-0.38.zip;
   trimfile=$(realpath $(ls **/*trim*jar));
-  yell "Trimmomatic is now at \"${trimfile}\" ..."
+  yell "Trimmomatic is now at \"${trimfile}\"."
   try rm Trimmomatic*.zip;
 else
   trimfile=$(realpath $(ls **/*trim*jar));
-  yell "Found trimmomatic at \"${trimfile}\" ...";
+  yell "Found trimmomatic at \"${trimfile}\".";
 fi
 if [ $INPUT = "ab1" ] ; then
   step="EMBOSS:";
