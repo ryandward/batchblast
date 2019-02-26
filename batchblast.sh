@@ -227,7 +227,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
       else
 
         outsize=$(cat $outfile | wc -l | tr -d ' ');
-        if [ "$outsize" = "0" ] || [ "$outsize" != $max_target_seqs ] ; then
+        if [ "$outsize" = "0" ] || [ "$outsize" -lt $max_target_seqs ] ; then
           yell "${step} Found ${outfile}, size: ${outsize} lines. Attempting to fix."
           yell "${step} Blasting ${x}.";
           blastn -db nt -query $x -remote -max_target_seqs=${max_target_seqs} -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
