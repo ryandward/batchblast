@@ -1,7 +1,7 @@
 yell() { printf "[%s\n" "${0##*/}] $*" | tr -s / >&2; }
 die() { yell "$*"; exit 111; }
 try() { (yell "Attempting: $*" && "$@" )  || die "Failed to complete: $*"; }
-probe(){ command -v "$@" >/dev/null 2>&1 && yell "Found $*" at \"$(which "$*")\" ||  die >&2 "This script requires \""$*"\", but it's not installed. Aborting ..."; }
+probe(){ command -v "$@" >/dev/null 2>&1 && yell "Found $*" at \"$(which "$*")\" ||  die >&2 "This script requires \""$*"\", but it's not installed. Aborting!"; }
 realpath() {
   [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
 }
@@ -110,13 +110,12 @@ if [ $INPUT = "ab1" ] ; then
     die "${step} No .ab1 file extensions in directory. Move them here to get started."
   else
 
-    yell "${step} Found ${count} files with .ab1 extension ..."
+    yell "${step} Found ${count} files with .ab1 extension."
     for x in $(ls *ab1);
     do
       next_status="Found:";
       outfile="$(basename "$x" .ab1).fq"
       insize=$(cat $x | wc -l | tr -d ' ');
-      #insize=$(cat $x | wc -l | tr -d ' ');;
       if [ ! -f $outfile ] ; then
         if [ "$insize" = "0" ] ; then
           die "${step} ${x} file is zero length, incomplete or corrupt data.";
@@ -127,10 +126,10 @@ if [ $INPUT = "ab1" ] ; then
       fi
       outsize=$(cat $outfile | wc -l | tr -d ' ');
       if [ "$outsize" = "0" ] ; then
-        yell "${step} ${outfile} is zero length, incomplete or corrupt conversion. Re-attempting ...";
+        yell "${step} ${next_status} ${outfile}: incomplete or corrupt... Re-trimming.";
         seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} > ${outfile};
       else
-        yell "${step} ${next_status} ${outfile}, size: ${outsize} lines ...";
+        yell "${step} ${next_status} ${outfile}, size: ${outsize} lines.";
 	
       fi
     done;
@@ -146,8 +145,8 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
     die "${step} No .fq file extensions in directory."
   else
 
-    yell "${step} Found ${count} files with .fq extension ..."
-    yell "${step} Trimming ${count} files, ends with p-value of 0.05 ...";
+    yell "${step} Found ${count} files with .fq extension."
+    yell "${step} Trimming ${count} files, ends with p-value of 0.05.";
     for x in $(ls *fq | grep -v clean.fq);
 
     do
@@ -156,7 +155,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
       insize=$(cat $x | wc -l | tr -d ' ');
       if [ ! -f $outfile ] ; then
         if [ "$insize" = "0" ] ; then
-          die "${step} ${x} file is zero length, incomplete or corrupt data.";
+          die "${step} ${x}: corrupt input. Delete or move to continue.";
         else
       	  next_status="Completed:";
           java -jar ${trimfile} SE -phred64 ${x} ${outfile} LEADING:14 TRAILING:14 2>/dev/null;
@@ -164,15 +163,16 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
       fi
       outsize=$(cat $outfile | wc -l | tr -d ' ');
       if [ "$outsize" = "0" ] ; then
-        yell "${step} ${outfile} is zero length, incomplete, corrupt conversion, or very low quality data...Re-attempting trimmomatic ...";
+        yell "${step} ${next_status} ${outfile}: incomplete or corrupt... Re-trimming.";
          java -jar ${trimfile} SE -phred64 ${x} ${outfile} LEADING:14 TRAILING:14 2>/dev/null;
         newoutsize=$(cat $outfile | wc -l | tr -d ' ');
       	next_status="Completed:";
         if [ "$newoutsize" = "0" ] ; then
-          yell "${step} ${outfile} did not survive trimming ..."
+          next_status="Warning:";  
+          yell "${step} ${next_status} ${outfile} did not survive trimming."
         fi
       else
-        yell "${step} ${next_status} ${outfile}, size: ${outsize} lines ...";
+        yell "${step} ${next_status} ${outfile}, size: ${outsize} lines.";
           trim_count=$((trim_count+1));
       fi
     done;
@@ -185,7 +185,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
     die "${step} Found 0 trimmed reads. Aborting!"
   else
 
-    yell "${step} Found ${trim_count} out of ${count}  that survived trimming, low quality files are zero-length ..."
+    yell "${step} Found ${trim_count} out of ${count}  that survived trimming, low quality files are zero-length."
     yell "${step} Converting from FASTQ to FASTA, all reads below 0.05 p-value."
     for x in $(ls *clean.fq);
 
@@ -208,7 +208,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
     die "${step} No .fa file extensions in directory. Aborting!"
   else
 
-    yell "${step} Found ${count} files with .fa extension ..."
+    yell "${step} Found ${count} files with .fa extension."
     for x in $(ls *.fa);
 
     do
@@ -219,25 +219,25 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
           yell "${step} ${x} Fasta size is zero.";
         else
 
-          yell "${step} Blasting ${x} ...";
+          yell "${step} Blasting ${x}.";
           blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
         fi
       else
 
         outsize=$(cat $outfile | wc -l | tr -d ' ');
         if [ "$outsize" = "0" ] ; then
-          yell "${step} Found ${outfile}, size: ${outsize} lines. Attempting to fix..."
-          yell "${step} Blasting ${x} ...";
+          yell "${step} Found ${outfile}, size: ${outsize} lines. Attempting to fix."
+          yell "${step} Blasting ${x}.";
           blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
           newoutsize=$(cat $outfile | wc -l | tr -d ' ');
           if [ "$newoutsize" = "0" ] ; then
-            yell "${step} ${outfile} was unable to complete..."
+            yell "${step} ${outfile} was unable to complete."
           else
 
-            yell "${step} Completed ${outfile}, size: ${newoutsize} lines ...";
+            yell "${step} Completed ${outfile}, size: ${newoutsize} lines.";
           fi
         else
-          yell "${step} Found ${outfile}, size: ${outsize} lines ...";
+          yell "${step} Found ${outfile}, size: ${outsize} lines.";
         fi
       fi
     done;
@@ -245,7 +245,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
 fi
 step="POST-PROCESS:"
 echo "#q_sampleid,#q_primer,#q_seqid,#s_title,#s_acc,#s_seqid,#pident,#q_length,#s_length,#evalue,#bitscore,#q_genus,#q_species,#q_strain" > blast_out.csv;
-yell "${step} Concatenating results ..."
+yell "${step} Concatenating results."
 try cat *tsv 2>/dev/null | sed 's/\,//g' | sed 's/\;//g' | sed 's/	/,/g' >> blast_out.csv;
 yell "${step} Blast results located at \"blast_out.csv\".";
 #yell "${step} Extracting relevant information from results ..."
