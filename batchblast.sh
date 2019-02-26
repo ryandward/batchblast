@@ -78,7 +78,7 @@ yell $(git --version) | perl -pe 'chomp if eof'
 sel=`ls -1 **/sel.awk  2>/dev/null | wc -l | tr -d ' '`
 if [ $sel = 0 ];
 then
-  yell "Sel not found ... Getting it for you ...";
+  yell "Sel not found...Getting it for you ...";
 
   try git clone https://github.com/ryandward/sel.git;
   selfile=$(realpath $(ls **/sel.awk));
@@ -90,7 +90,7 @@ fi
 trim=`ls -1 **/*trimmomatic*jar  2>/dev/null | wc -l | tr -d ' '`
 if [ $trim = 0 ];
 then
-  yell "Trimmomatic not found ... Getting it for you ...";
+  yell "Trimmomatic not found...Getting it for you ...";
 
   try wget http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.38.zip;
   try unzip Trimmomatic-0.38.zip;
@@ -112,8 +112,8 @@ if [ $INPUT = "ab1" ] ; then
 
     yell "${step} Found ${count} files with .ab1 extension ..."
     for x in $(ls *ab1);
-
     do
+      next_status="Found:";
       outfile="$(basename "$x" .ab1).fq"
       insize=$(cat $x | wc -l | tr -d ' ');
       #insize=$(cat $x | wc -l | tr -d ' ');;
@@ -121,22 +121,25 @@ if [ $INPUT = "ab1" ] ; then
         if [ "$insize" = "0" ] ; then
           die "${step} ${x} file is zero length, incomplete or corrupt data.";
         else
-          yell "${step} Converting ${x} to FASTQ format: ${outfile}" && try seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} > ${outfile};
-        fi
+          yell "${step} Converting ${x} to FASTQ format: ${outfile}" && seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} > ${outfile};
+          next_status="Completed:";	
+	fi
       fi
       outsize=$(cat $outfile | wc -l | tr -d ' ');
       if [ "$outsize" = "0" ] ; then
         yell "${step} ${outfile} is zero length, incomplete or corrupt conversion. Re-attempting ...";
-        try seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} > ${outfile};
+        seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} > ${outfile};
       else
-        yell "${step} Found ${outfile}, size: ${outsize} lines ...";
+        yell "${step} ${next_status} ${outfile}, size: ${outsize} lines ...";
+	
       fi
     done;
   fi
 fi
 if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
   step="TRIMMOMATIC:"
-  count=`ls -1 *.fq | grep -v *clean.fq  2>/dev/null | wc -l | tr -d ' '`
+  count=`ls -1 *.fq | grep -v clean.fq  2>/dev/null | wc -l | tr -d ' '`
+  trimcount=0;
   if [ $count = 0 ]
 
   then
@@ -148,39 +151,41 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
     for x in $(ls *fq | grep -v clean.fq);
 
     do
+      next_status="Found:";
       outfile="$(basename "$x" .fq).clean.fq"
       insize=$(cat $x | wc -l | tr -d ' ');
       if [ ! -f $outfile ] ; then
         if [ "$insize" = "0" ] ; then
           die "${step} ${x} file is zero length, incomplete or corrupt data.";
         else
-          try java -jar ${trimfile} SE -phred64 ${x} ${outfile} LEADING:14 TRAILING:14 2>/dev/null;
+      	  next_status="Completed:";
+          java -jar ${trimfile} SE -phred64 ${x} ${outfile} LEADING:14 TRAILING:14 2>/dev/null;
         fi
       fi
       outsize=$(cat $outfile | wc -l | tr -d ' ');
       if [ "$outsize" = "0" ] ; then
-        yell "${step} ${outfile} is zero length, incomplete, corrupt conversion, or very low quality data ... Re-attempting trimmomatic ...";
-        try java -jar ${trimfile} SE -phred64 ${x} ${outfile} LEADING:14 TRAILING:14 2>/dev/null;
+        yell "${step} ${outfile} is zero length, incomplete, corrupt conversion, or very low quality data...Re-attempting trimmomatic ...";
+         java -jar ${trimfile} SE -phred64 ${x} ${outfile} LEADING:14 TRAILING:14 2>/dev/null;
         newoutsize=$(cat $outfile | wc -l | tr -d ' ');
+      	next_status="Completed:";
         if [ "$newoutsize" = "0" ] ; then
           yell "${step} ${outfile} did not survive trimming ..."
-          count=$((count-1));
         fi
       else
-        yell "${step} Found ${outfile}, size: ${outsize} lines ...";
+        yell "${step} ${next_status} ${outfile}, size: ${outsize} lines ...";
+          trim_count=$((trim_count+1));
       fi
     done;
   fi
-  pretrimcount=$count;
   step="PASTE:"
   count=`ls -1 *.clean.fq  2>/dev/null | wc -l | tr -d ' '`
   if [ $count = 0 ]
 
   then
-    die "${step} Found 0 trimmed reads out of ${pretrimcount} ... Aborting!"
+    die "${step} Found 0 trimmed reads. Aborting!"
   else
 
-    yell "${step} Found ${pretrimcount} out of ${count}  that survived trimming, low quality files are zero-length ..."
+    yell "${step} Found ${trim_count} out of ${count}  that survived trimming, low quality files are zero-length ..."
     yell "${step} Converting from FASTQ to FASTA, all reads below 0.05 p-value."
     for x in $(ls *clean.fq);
 
@@ -221,12 +226,12 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
 
         outsize=$(cat $outfile | wc -l | tr -d ' ');
         if [ "$outsize" = "0" ] ; then
-          yell "${step} Found ${outfile}, size: ${outsize} lines. Attempting to fix ... "
+          yell "${step} Found ${outfile}, size: ${outsize} lines. Attempting to fix..."
           yell "${step} Blasting ${x} ...";
           blastn -db nt -query $x -remote -max_target_seqs=20 -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || yell "${step} Timed out Blasting ${outfile}";
           newoutsize=$(cat $outfile | wc -l | tr -d ' ');
           if [ "$newoutsize" = "0" ] ; then
-            yell "${step} ${outfile} was unable to complete ... "
+            yell "${step} ${outfile} was unable to complete..."
           else
 
             yell "${step} Completed ${outfile}, size: ${newoutsize} lines ...";
