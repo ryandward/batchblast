@@ -1,4 +1,3 @@
-max_target_seqs=20;
 next_status="SETUP:";
 
 #Setup commands.
@@ -23,9 +22,9 @@ body () {
   "$@"
 }
 
-OPTIONS=$(getopt -o i:n:h -l input:,number:,help -- "$@")
+OPTIONS=$(getopt -o :i:n:h -l input:,number:,help -- "$@")
 
-usage() { die "Error: Usage: $0 -i [ab1/fastq/fasta] -n [max_target_seqs].";
+usage() { die "Error: Usage: $0 -i [ab1/fastq/fasta] -n [max_target_seqs (>1)].";
 	}
 
 if [ $? -ne 0 ]; then
@@ -37,21 +36,47 @@ eval set -- $OPTIONS
 
 while true; do
   case "$1" in
-    -i|--input) 	INPUT="$2";	shift ;;
-    -n|--number)	max_target_seqs="$2";	shift ;;
-    -h|--help)		usage ; 	shift ; exit 0 ;;
-    --)       	        		shift ; break ;;
+    -i|--input) 	INPUT="$2";		shift ;;
+    -n|--number)	max_target_seqs="$2"; 	shift ;;
+    -h|--help)		usage ; 		shift ; exit 0 ;;
+    --)       	        	 		shift ; break ;;
     *)        		usage ; 		exit 1 ;;
   esac
   shift
 done
 
 if [ ! -z "$@" ]; then 
-	yell "Warning: \"$@\" is extraneous. Ignoring."
+	next_status="Warning :";
+
+	yell "${next_status} \"$@\" is extraneous. Ignoring."
 fi
 
 if [ $INPUT != "ab1" ] && [ $INPUT != "fastq" ] && [ $INPUT != "fasta" ]; then
-	usage;
+
+	next_status="Error:";
+	die "${next_status} input flag [-i] must be ab1, fastq, or fasta.";
+
+else
+
+	yell "${next_status} input is set to ${INPUT}.";
+fi
+
+if [[ ! $max_target_seqs =~ ^[1-9][0-9]*$ ]]  ; then
+
+	if [ -z $max_target_seqs ]; then 
+		max_target_seqs="BLANK"; 
+	fi
+	
+	next_status="Warning: "
+	invalid_value=$max_target_seqs;
+	max_target_seqs=10;
+
+	yell "${next_status} Defaulting max_target_seqs to ${max_target_seqs}, was ${invalid_value}.";
+
+else
+
+	yell "${next_status} max_target_seqs is ${max_target_seqs}.";
+	
 fi
 
 STRAIN_DEFINITIONS=/home/ryanward/Dropbox/Pietrasiak/JGI_strains.csv
