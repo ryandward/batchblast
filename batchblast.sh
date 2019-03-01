@@ -1,96 +1,61 @@
 max_target_seqs=20;
 next_status="SETUP:";
 
+#Setup commands.
 yell() { printf "[%s\n" "${0##*/}] $*" | tr -s / >&2; }
 die() { yell "$*"; exit 111; }
 try() { (yell "Attempting: $*" && "$@" )  || die "Failed to complete: $*"; }
-probe(){ command -v "$@" >/dev/null 2>&1 && yell "${next_status} Found $*" at \"$(which "$*")\" ||  die >&2 "${next_status} This script requires \""$*"\", but it's not installed. Aborting!"; }
-realpath() {
-  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
-}
+probe(){ command -v "$@" >/dev/null 2>&1 && yell "${next_status} Found $*" at \"$(which "$*")\" || die >&2 "${next_status} This script requires \""$*"\", but it's not installed."; }
+realpath() { [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"; }
+usage() { die "Usage: $0 [ -i INPUT (ab1, fasta, fastq) ]" 1>&2; }
+exit_abnormal() { usage; exit 1; }
 
+#Make sure all commands work
 realpath "$0"
+probe perl;
+probe seqret;
+probe blastn;
+probe git;
 
 body () {
   IFS= read -r header
   printf '%s\n' "$header"
   "$@"
 }
-usage() {
 
-die "Usage: $0 [ -i INPUT (ab1, fasta, fastq) ]" 1>&2
+OPTIONS=$(getopt -o i:n:h -l input:,number:,help -- "$@")
 
-}
-exit_abnormal() {
+usage() { die "Error: Usage: $0 -i [ab1/fastq/fasta] -n [max_target_seqs].";
+	}
 
-usage
-
-exit 1
-}
-if [[ ! $@ =~ ^\-i+ ]]; then
-
-  usage
+if [ $? -ne 0 ]; then
+  	usage;
+	exit 1
 fi
 
-while getopts "i:" options; do
+eval set -- $OPTIONS
 
-case "${options}" in
-
-  i)
-
-  INPUT=${OPTARG}
-
-  if [ $INPUT = "ab1" ] ; then
-
-  yell "Input type ab1 ..."
-
-elif [ $INPUT = "fasta" ] ; then
-
-yell "Input type fasta ..."
-
-elif [ $INPUT = "fastq" ] ; then
-
-yell "Input type fastq ..."
-
-else
-
-  exit_abnormal;
-
-fi
-
-;;
-
-:)
-yell "Error: -${OPTARG} requires an argument."
-exit_abnormal
-;;
-*)
-exit_abnormal
-;;
-esac
+while true; do
+  case "$1" in
+    -i|--input) 	INPUT="$2";	shift ;;
+    -n|--number)	max_target_seqs="$2";	shift ;;
+    -h|--help)		usage ; 	shift ; exit 0 ;;
+    --)       	        		shift ; break ;;
+    *)        		usage ; 		exit 1 ;;
+  esac
+  shift
 done
-STRAIN_DEFINITIONS=/home/ryanward/Dropbox/Pietrasiak/JGI_strains.csv
-probe perl;
-#yell $(perl -e 'print $];') | perl -pe 'chomp if eof'
-probe seqret;
-#yell '\r\n' $(seqret --version) | perl -pe 'chomp if eof'
-probe blastn;
-#yell $(blastn -version) | perl -pe 'chomp if eof'
-probe git;
-#yell $(git --version) | perl -pe 'chomp if eof'
 
-sel=`ls -1 **/sel.awk  2>/dev/null | wc -l | tr -d ' '`
-if [ $sel = 0 ];
-then
-  yell "${next_status} Sel not found...Getting it for you.";
-
-  try git clone https://github.com/ryandward/sel.git;
-  selfile=$(realpath $(ls **/sel.awk));
-  yell "${next_status} Sel is now at \"${selfile}\"."
-else
-  selfile=$(realpath $(ls **/sel.awk));
-  yell "${next_status} Found sel at \"${selfile}\".";
+if [ ! -z "$@" ]; then 
+	yell "Warning: \"$@\" is extraneous. Ignoring."
 fi
+
+if [ $INPUT != "ab1" ] && [ $INPUT != "fastq" ] && [ $INPUT != "fasta" ]; then
+	usage;
+fi
+
+STRAIN_DEFINITIONS=/home/ryanward/Dropbox/Pietrasiak/JGI_strains.csv
+
 trim=`ls -1 **/*trimmomatic*jar  2>/dev/null | wc -l | tr -d ' '`
 if [ $trim = 0 ];
 then
@@ -139,9 +104,10 @@ if [ $INPUT = "ab1" ] ; then
     done;
   fi
 fi
+
 if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
   step="TRIMMOMATIC:"
-  count=`ls -1 *.fq | grep -v clean.fq  2>/dev/null | wc -l | tr -d ' '`
+  count=`ls -1 *.fq 2>/dev/null | grep -v clean.fq  | wc -l | tr -d ' '`
   trimcount=0;
   if [ $count = 0 ]
 
@@ -278,8 +244,10 @@ yell "${step} ${next_status} ${count} files with .tsv extension."
     try cat *tsv 2>/dev/null | sed 's/\,//g' | sed 's/\;//g' | sed 's/	/,/g' >> blast_out.csv;
     yell "${step} Blast results located at \"blast_out.csv\".";
   fi
+
+###TODO###
 #yell "${step} Extracting relevant information from results ..."
 #try cat blast_out.csv 2>/dev/null | try body awk -vFS=, -vOFS=, '(NR!=1){match($1,/_([0-9]{1,2})[A-z]?_Pri/,sample);match ($1,/(Primer.*)/,primer); { print sample[1], primer[1],$0}}' > tmp.csv
 #yell $"${step} Using ${STRAIN_DEFINITIONS} as source to extract query submission genus and species ..."
 #try awk -vFS=, -vOFS=, '(NR==FNR){gen[$1]=$2;spec[$1]=$3;strain[$1]=$4;next;} (NR!=FNR) {if(FNR==1) print $0} {if(FNR!=1){print $0,gen[$1],spec[$1],strain[$1]} }' ${STRAIN_DEFINITIONS} tmp.csv > blast_out.csv 2>/dev/null && try rm tmp.csv 2>/dev/null
-#paste -d, <( ${selfile} "col=q_sampleid,q_primer,q_genus,q_species,q_strain" blast_out.csv) <( ${selfile}  "col=s_" blast_out.csv) > tmp.csv
+#paste -d, <( ${selefile} "col=q_sampleid,q_primer,q_genus,q_species,q_strain" blast_out.csv) <( ${selefile}  "col=s_" blast_out.csv) > tmp.csv
