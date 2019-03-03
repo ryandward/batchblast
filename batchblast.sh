@@ -66,8 +66,9 @@ else
 	yell "input set to ${INPUT}.";
 fi
 
-if [[ $max_target_seqs > 100 ]]; then
+if [[ $max_target_seqs -gt 100 ]]; then
 	status="Warning:";
+	yell $max_target_seqs;
 	max_target_seqs=100
 	yell "maximum returned results must be between 1 and ${max_target_seqs}. Setting to ${max_target_seqs}.";
 fi
