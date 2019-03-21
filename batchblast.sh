@@ -1,23 +1,29 @@
-step="Setup:";
+STEP="Setup:"
 #Setup commands.
-yell() { printf ["%s\n" "${0##*/}] ${step} ${status} $*" | tr -s / >&2; }
-die() { yell "$*"; exit 111; }
-try() { (yell "Trying: $*" && "$@" )  || die "Failed: $*"; }
-probe(){ command -v "$@" >/dev/null 2>&1 && yell "Found: $*" || die >&2 "This script requires \""$*"\", but it's not installed."; }
-realpath() { [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"; }
+yell() { printf ["%s\n" "${0##*/}] ${STEP} ${STATUS} $*" | tr -s / >&2; }
+die() {
+  yell "$*"
+  exit 111
+}
+try() { (yell "Trying: $*" && "$@") || die "Failed: $*"; }
+probe() { command -v "$@" >/dev/null 2>&1 && yell "Found: $*" || die >&2 "This script requires \""$*"\", but it's not installed."; }
+realpath() { [[ $1 == /* ]] && echo "$1" || echo "$PWD/${1#./}"; }
 usage() { die "Usage: $0 [ -i INPUT (ab1, fasta, fastq) ]" 1>&2; }
-exit_abnormal() { usage; exit 1; }
+exit_abnormal() {
+  usage
+  exit 1
+}
 
 #Make sure all commands work
-status="Probe:";
+STATUS="Probe:"
 realpath "$0"
-probe perl;
-probe seqret;
-probe blastn;
-probe git;
-probe timeout;
+probe perl
+probe seqret
+probe blastn
+probe git
+probe timeout
 
-body () {
+body() {
   IFS= read -r header
   printf '%s\n' "$header"
   "$@"
@@ -25,274 +31,316 @@ body () {
 
 OPTIONS=$(getopt -o :i:n:h -l input:,number:,help -- "$@")
 
-usage() { die "Error: Usage: $0 -i [ab1/fastq/fasta] -n [max_target_seqs (>1)].";
-	}
+usage() {
+  die "Error: Usage: $0 -i [ab1/fastq/fasta] -n [MAX_TARGET_SEQS (>1)]."
+}
 
 if [ $? -ne 0 ]; then
-  	usage;
-	exit 1
+  usage
+  exit 1
 fi
 
 eval set -- $OPTIONS
 
 while true; do
   case "$1" in
-    -i|--input) 	INPUT="$2";		shift ;;
-    -n|--number)	max_target_seqs="$2"; 	shift ;;
-    -h|--help)		usage ; 		shift ; exit 0 ;;
-    --)       	        	 		shift ; break ;;
-    *)        		usage ; 		exit 1 ;;
+  -i | --input)
+    INPUT="$2"
+    shift
+    ;;
+  -n | --number)
+    MAX_TARGET_SEQS="$2"
+    shift
+    ;;
+  -h | --help)
+    usage
+    shift
+    exit 0
+    ;;
+  --)
+    shift
+    break
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
   esac
   shift
 done
 
-if [ ! -z "$@" ]; then 
-	status="Warning :";
-	yell "\"$@\" is extraneous. Ignoring."
+if [ ! -z "$@" ]; then
+  STATUS="Warning :"
+  yell "\"$@\" is extraneous. Ignoring."
 fi
 
 if [ -z $INPUT ]; then
-	status="Error :";
-	die "input flag [-i] cannot be blank, and must be ab1, fastq, or fasta.";
+  STATUS="Error :"
+  die "input flag [-i] cannot be blank, and must be ab1, fastq, or fasta."
 fi
 
 if [ $INPUT != "ab1" ] && [ $INPUT != "fastq" ] && [ $INPUT != "fasta" ]; then
-	status="Error:";
-	die "input flag [-i] must be ab1, fastq, or fasta.";
+  STATUS="Error:"
+  die "input flag [-i] must be ab1, fastq, or fasta."
 
 else
 
-	status="Variable:";
-	yell "input set to ${INPUT}.";
+  STATUS="Variable:"
+  yell "input set to ${INPUT}."
 fi
 
-if [[ $max_target_seqs -gt 100 ]]; then
-	status="Warning:";
-	yell $max_target_seqs;
-	max_target_seqs=100
-	yell "maximum returned results must be between 1 and ${max_target_seqs}. Setting to ${max_target_seqs}.";
+if [[ $MAX_TARGET_SEQS -gt 100 ]]; then
+  STATUS="Warning:"
+  yell $MAX_TARGET_SEQS
+  MAX_TARGET_SEQS=100
+  yell "maximum returned results must be between 1 and ${MAX_TARGET_SEQS}. Setting to ${MAX_TARGET_SEQS}."
 fi
 
-if [[ ! $max_target_seqs =~ ^[1-9][0-9]*$ ]]  ; then
+if [[ ! $MAX_TARGET_SEQS =~ ^[1-9][0-9]*$ ]]; then
 
-	if [ -z $max_target_seqs ]; then 
-		max_target_seqs="BLANK"; 
-	fi
-	
-	status="Warning:"
-	invalid_value=$max_target_seqs;
-	max_target_seqs=10;
+  if [ -z $MAX_TARGET_SEQS ]; then
+    MAX_TARGET_SEQS="BLANK"
+  fi
 
-	yell "defaulting max_target_seqs to ${max_target_seqs}, was ${invalid_value}.";
+  STATUS="Warning:"
+  invalid_value=$MAX_TARGET_SEQS
+  MAX_TARGET_SEQS=10
+
+  yell "defaulting MAX_TARGET_SEQS to ${MAX_TARGET_SEQS}, was ${invalid_value}."
 
 else
 
-	yell "max_target_seqs is ${max_target_seqs}.";
-	
+  yell "MAX_TARGET_SEQS is ${MAX_TARGET_SEQS}."
+
 fi
 
 STRAIN_DEFINITIONS=/home/ryanward/Dropbox/Pietrasiak/JGI_strains.csv
 
-trim=`ls -1 **/*trimmomatic*jar  2>/dev/null | wc -l | tr -d ' '`
-if [ $trim = 0 ];
-then
-  status="Warning:";
-  yell "Trimmomatic not found... Installing.";
-  try wget http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.38.zip;
-  try unzip Trimmomatic-0.38.zip;
-  trimfile=$(realpath $(ls **/*trim*jar));
-  Status="Success:";
-  yell "Trimmomatic is now at \"${trimfile}\"."
-  try rm Trimmomatic*.zip;
-else
-  status="Found";
-  trimfile=$(realpath $(ls **/*trim*jar));
-  yell "Trimmomatic at \"${trimfile}\".";
-fi
-if [ $INPUT = "ab1" ] ; then
-  step="EMBOSS:";
-  count=`ls -1 *.ab1  2>/dev/null | wc -l | tr -d ' '`
-  if [ $count = 0 ]
+trim=$(ls -1 **/*trimmomatic*jar 2>/dev/null | wc -l | tr -d ' ')
 
-  then
-    status="Error:";
+if [ $trim = 0 ]; then
+  STATUS="Warning:"
+  yell "Trimmomatic not found... Installing."
+  try wget http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.38.zip
+  try unzip Trimmomatic-0.38.zip
+  TRIMFILE=$(realpath $(ls **/*trim*jar))
+  STATUS="Success:"
+  yell "Trimmomatic is now at \"${TRIMFILE}\"."
+  try rm Trimmomatic*.zip
+
+else
+  STATUS="Found"
+  TRIMFILE=$(realpath $(ls **/*trim*jar))
+  yell "Trimmomatic at \"${TRIMFILE}\"."
+
+fi
+
+if [ $INPUT = "ab1" ]; then
+
+  STEP="EMBOSS:"
+  PROGRESS=0;
+
+  COUNT=$(ls -1 *.ab1 2>/dev/null | wc -l | tr -d ' ')
+  if [ $COUNT = 0 ]; then
+    STATUS="Error:"
     die "No .ab1 file extensions in directory. Move them here to get started."
   else
-    status="Found:":
-    yell "${count} files with .ab1 extension."
-    for x in $(ls *ab1);
-    do
-      status="Found:";
-      outfile="$(basename "$x" .ab1).fq"
-      insize=$(cat $x | wc -l | tr -d ' ');
-      if [ ! -f $outfile ] ; then
-        if [ "$insize" = "0" ] ; then
-          status="Error:";
-          die "${x} file is zero length, incomplete or corrupt data.";
+    STATUS="Found:":
+    yell "${COUNT} files with .ab1 extension."
+    for x in $(ls *ab1); do
+      ((PROGRESS++))
+      STATUS="($PROGRESS/$COUNT) Found:"
+      OUTFILE="$(basename "$x" .ab1).fq"
+      INSIZE=$(cat $x | wc -l | tr -d ' ')
+      if [ ! -f $OUTFILE ]; then
+        if [ "$INSIZE" = "0" ]; then
+          STATUS="($PROGRESS/$COUNT) Warning:"
+          die "${x} file is zero length, incomplete or corrupt data."
         else
-          status="Converting:";
-          yell "${x} to FastQ format: ${outfile}" && seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} > ${outfile};
-          status="Completed:";	
-	fi
+          STATUS="($PROGRESS/$COUNT) Converting:"
+          yell "${x} to FastQ format: ${OUTFILE}" && seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} >${OUTFILE}
+          STATUS="($PROGRESS/$COUNT) Completed:"
+        fi
       fi
-      outsize=$(cat $outfile | wc -l | tr -d ' ');
-      if [ "$outsize" = "0" ] ; then
-        yell "${outfile}: incomplete or corrupt... Re-trimming.";
-        seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} > ${outfile};
+      OUTSIZE=$(cat $OUTFILE | wc -l | tr -d ' ')
+      if [ "$OUTSIZE" = "0" ]; then
+        yell "${OUTFILE}: incomplete or corrupt... Re-trimming."
+        seqret -sformat abi -osformat fastq -auto -stdout -sequence ${x} >${OUTFILE}
       else
-        yell "${outfile}, size: ${outsize} lines.";
-	
+        yell "${OUTFILE}, size: ${OUTSIZE} lines."
+
       fi
-    done;
+    done
   fi
 fi
 
-if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] ; then
-  step="Trimmomatic:"
-  status="Begin:"
-  count=`ls -1 *.fq 2>/dev/null | grep -v trim.fq  | wc -l | tr -d ' '`
-  trimcount=0;
-  if [ $count = 0 ]; then
-    status="Error:";
+if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]; then
+  STEP="Trimmomatic:"
+  PROGRESS=0;
+  STATUS="Begin:"
+  COUNT=$(ls -1 *.fq 2>/dev/null | grep -v trim.fq | wc -l | tr -d ' ')
+  trimCOUNT=0
+  if [ $COUNT = 0 ]; then
+    STATUS="Error:"
     die "No .fq file extensions in directory."
   else
-    status="Found:";
-    yell "${count} files with .fq extension."
-    status="Trimming:";
-    yell "${count} files, ends with p-value of 0.05.";
-    for x in $(ls *fq | grep -v trim.fq);
+    STATUS="Found:"
+    yell "${COUNT} files with .fq extension."
+    STATUS="Initialize:"
+    yell "${COUNT} files, ends with p-value of 0.05."
 
-    do
-      status="Found:";
-      outfile="$(basename "$x" .fq).trim.fq"
-      insize=$(cat $x | wc -l | tr -d ' ');
-      if [ ! -f $outfile ] ; then
-        if [ "$insize" = "0" ] ; then
-          die "${x}: corrupt input. Delete or move to continue.";
+    for x in $(ls *fq | grep -v trim.fq); do
+      ((PROGRESS++))
+      STATUS="($PROGRESS/$COUNT) Found:"
+      OUTFILE="$(basename "$x" .fq).trim.fq"
+      INSIZE=$(cat $x | wc -l | tr -d ' ')
+      if [ ! -f $OUTFILE ]; then
+        if [ "$INSIZE" = "0" ]; then
+          die "${x}: corrupt input. Delete or move to continue."
         else
-      	  status="Completed:";
-          java -jar ${trimfile} SE -phred64 ${x} ${outfile} LEADING:14 TRAILING:14 2>/dev/null;
+          STATUS="($PROGRESS/$COUNT) Completed:"
+          java -jar ${TRIMFILE} SE -phred64 ${x} ${OUTFILE} LEADING:14 TRAILING:14 2>/dev/null
         fi
       fi
-      outsize=$(cat $outfile | wc -l | tr -d ' ');
-      if [ "$outsize" = "0" ] ; then
-        yell "${outfile}: incomplete or corrupt... Re-trimming.";
-         java -jar ${trimfile} SE -phred64 ${x} ${outfile} LEADING:14 TRAILING:14 2>/dev/null;
-        newoutsize=$(cat $outfile | wc -l | tr -d ' ');
-      	status="Completed:";
-        if [ "$newoutsize" = "0" ] ; then
-          status="Warning:";  
-          yell "${outfile} did not survive trimming."
+      OUTSIZE=$(cat $OUTFILE | wc -l | tr -d ' ')
+      if [ "$OUTSIZE" = "0" ]; then
+        yell "${OUTFILE}: incomplete or corrupt... Re-trimming."
+        java -jar ${TRIMFILE} SE -phred64 ${x} ${OUTFILE} LEADING:14 TRAILING:14 2>/dev/null
+        newOUTSIZE=$(cat $OUTFILE | wc -l | tr -d ' ')
+        STATUS="($PROGRESS/$COUNT) Completed:"
+        if [ "$newOUTSIZE" = "0" ]; then
+          STATUS="($PROGRESS/$COUNT) Warning:"
+          yell "${OUTFILE} did not survive trimming."
         fi
       else
-        yell "${outfile}, size: ${outsize} lines.";
-          trim_count=$((trim_count+1));
+        yell "${OUTFILE}, size: ${OUTSIZE} lines."
+        trim_COUNT=$((trim_COUNT + 1))
       fi
-    done;
+    done
   fi
-  step="Data Mining:"
-  count=`ls -1 *.trim.fq  2>/dev/null | wc -l | tr -d ' '`
-  if [ $count = 0 ]
-
-  then
-    status="Error:";
+  STEP="Formatting:"
+  PROGRESS=0;
+  COUNT=$(ls -1 *.trim.fq 2>/dev/null | wc -l | tr -d ' ')
+  if [ $COUNT = 0 ]; then
+    STATUS="Error:"
     die "0 trimmed reads. Aborting!"
   else
-    status="Found:";
-    yell "${trim_count} out of ${count} that survived trimming."
-    status="Converting:";
-    yell "FastQ to Fasta, p-value < 0.05.";
-    for x in $(ls *trim.fq);
+    STATUS="Found:"
 
-    do
-      outfile="$(basename "$x" .trim.fq).fa"
-      insize=$(cat $x | wc -l | tr -d ' ');
-      if [ $insize != "0" ];
-      then
-        paste - - - - < ${x} | cut -f 1,2 | sed 's/^@/>/' | tr "\t" "\n" > ${outfile};
+    yell "${trim_COUNT} out of ${COUNT} that survived trimming."
+    COUNT=$trim_COUNT;
+
+    yell "FastQ to FASTA for p-value < 0.05."
+
+    for x in $(ls *trim.fq); do
+      ((PROGRESS++))
+      STATUS="($PROGRESS/$COUNT) Converting:"
+
+      OUTFILE="$(basename "$x" .trim.fq).fa"
+      INSIZE=$(cat $x | wc -l | tr -d ' ')
+      yell "${x} --> ${OUTFILE}"
+      if [ $INSIZE != "0" ]; then
+        paste - - - - <${x} | cut -f 1,2 | sed 's/^@/>/' | tr "\t" "\n" >${OUTFILE}
       fi
-    done;
+    done
   fi
 fi
-if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]  || [ $INPUT = "fasta" ]; then
-  step="BlastN:";
-  count=`ls -1 *.fa  2>/dev/null | wc -l | tr -d ' '`
-  if [ $count = 0 ]
+if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
 
-  then
-    status="Error:";
+  STEP="BlastN:"
+  PROGRESS=0;
+
+  COUNT=$(ls -1 *.fa 2>/dev/null | wc -l | tr -d ' ')
+
+  if [ $COUNT = 0 ]; then
+    STATUS="Error:"
     die "No .fa file extensions in directory. Aborting!"
-  else
-    status="Found:";
-    yell "${count} files with .fa extension."
-    for x in $(ls *.fa);
 
-    do
-      outfile="$(basename "$x" .fa).blast.tsv"
-      insize=$(cat $x | wc -l | tr -d ' ');
-      if [ ! -f $outfile ] ; then
-        if [ "$insize" = "0" ] ; then
-          yell "${x} Fasta size is zero.";
+  else
+    STATUS="Found:"
+    yell "${COUNT} files with .fa extension."
+
+    for x in $(ls *.fa); do
+      ((PROGRESS++))
+      OUTFILE="$(basename "$x" .fa).blast.tsv"
+
+      INSIZE=$(cat $x | wc -l | tr -d ' ')
+
+      if [ ! -f $OUTFILE ]; then
+
+        if [ "$INSIZE" = "0" ]; then
+          yell "${x} Fasta size is zero."
         else
-          status="Blasting:";
-          yell "${x}.";
-          timeout --foreground 2m blastn -db nt -query $x -remote -max_target_seqs=${max_target_seqs} -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || (status="Warning:" && yell "Operation timed out.";)
+          STATUS="($PROGRESS/$COUNT) Blasting:"
+          yell "${x}."
+          timeout --foreground 2m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
+            while read line; do
+              STATUS="NCBI returned:"
+              yell $line
+            done
+            STATUS="($PROGRESS/$COUNT) Blasting:"
+
         fi
       else
 
-        outsize=$(cat $outfile | wc -l | tr -d ' ');
-        if [ "$outsize" = "0" ] || [ "$outsize" -lt $max_target_seqs ] ; then
-          status="Found:";
-          yell "${outfile} size: ${outsize} lines. Attempting to fix."
-          
-          status="Blasting:";
-          yell "${x}.";
-          timeout --foreground 2m blastn -db nt -query $x -remote -max_target_seqs=${max_target_seqs} -out $outfile -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" || (status="Warning:" && yell "Operation timed out.";)
-          newoutsize=$(cat $outfile | wc -l | tr -d ' ');
-          if [ "$newoutsize" = "0" ] ; then
-            yell "${outfile} was unable to complete."
+        OUTSIZE=$(cat $OUTFILE | wc -l | tr -d ' ')
+        if [ "$OUTSIZE" = "0" ] || [ "$OUTSIZE" -lt $MAX_TARGET_SEQS ]; then
+          STATUS="($PROGRESS/$COUNT) Found:"
+          yell "${OUTFILE} size: ${OUTSIZE} lines. Attempting to fix."
+          STATUS="($PROGRESS/$COUNT) Blasting:"
+          yell "${x}."
+          timeout --foreground 2m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
+            while read line; do
+              STATUS="($PROGRESS/$COUNT) NCBI returned:"
+              yell $line
+            done
+          STATUS="($PROGRESS/$COUNT) Blasting:"
+
+          newOUTSIZE=$(cat $OUTFILE | wc -l | tr -d ' ')
+          if [ "$newOUTSIZE" = "0" ]; then
+            STATUS="($PROGRESS/$COUNT) Warning:"
+            yell "Unable to initialize ${OUTFILE}, probable NCBI network throttle."
+            STATUS="($PROGRESS/$COUNT) Blasting:"
           else
 
-            yell "Completed ${outfile}, size: ${newoutsize} lines.";
+            yell "Completed ${OUTFILE}, size: ${newOUTSIZE} lines."
           fi
         else
-          yell "Found ${outfile}, size: ${outsize} lines.";
+          STATUS="($PROGRESS/$COUNT) Found:"
+          yell "${OUTFILE}, size: ${OUTSIZE} lines."
+          STATUS="($PROGRESS/$COUNT) Blasting:"
         fi
       fi
-    done;
+    done
   fi
 fi
-  
 
-  step="POST-PROCESS:"
-  count=`ls -1 *.tsv 2>/dev/null | wc -l | tr -d ' '`
-  fa_count=`ls -1 *.fa 2>/dev/null | wc -l | tr -d ' '`
-  status="Found:"
+STEP="POST-PROCESS:"
+COUNT=$(ls -1 *.tsv 2>/dev/null | wc -l | tr -d ' ')
+fa_COUNT=$(ls -1 *.fa 2>/dev/null | wc -l | tr -d ' ')
+STATUS="Found:"
 
-  if [ $count != $fa_count ]
-
-  then
-    status="Error:";
-    die "Quantity mismatch of output (.tsv) and input (.fa) files. Please rerun this script."
-  else
-    for x in $(ls *tsv);
-    do
-      outfile="$(basename "$x" .tsv).fa"
-      insize=$(cat $x | wc -l | tr -d ' ');
-      if [ ! -f $outfile ] ; then
-        if [ "$insize" -lt "$max_target_seqs" ] ; then
-          status="Error:";
-	  die "${x} output (.tsv) is not ${max_target_seqs} in length, incomplete or corrupt data. Rerun this script.";
-	fi
+if [ $COUNT != $fa_COUNT ]; then
+  STATUS="Error:"
+  die "Quantity mismatch of output (.tsv) and input (.fa) files. Please rerun this script."
+else
+  for x in $(ls *tsv); do
+    OUTFILE="$(basename "$x" .tsv).fa"
+    INSIZE=$(cat $x | wc -l | tr -d ' ')
+    if [ ! -f $OUTFILE ]; then
+      if [ "$INSIZE" -lt "$MAX_TARGET_SEQS" ]; then
+        STATUS="Error:"
+        die "${x} output .tsv file is not ${MAX_TARGET_SEQS} in length, incomplete or corrupt data. Rerun this script."
       fi
-    done;
-    
-yell "${count} files with .tsv extension."
-    echo "#q_sampleid,#q_primer,#q_seqid,#s_title,#s_acc,#s_seqid,#pident,#q_length,#s_length,#evalue,#bitscore,#q_genus,#q_species,#q_strain" > blast_out.csv;
-    yell "Concatenating results."
-    try cat *tsv 2>/dev/null | sed 's/\,//g' | sed 's/\;//g' | sed 's/	/,/g' >> blast_out.csv;
-    yell "Blast results located at \"blast_out.csv\".";
-  fi
+    fi
+  done
+
+  yell "${COUNT} files with .tsv extension."
+  echo "#q_sampleid,#q_primer,#q_seqid,#s_title,#s_acc,#s_seqid,#pident,#q_length,#s_length,#evalue,#bitscore,#q_genus,#q_species,#q_strain" >blast_out.csv
+  yell "Concatenating results."
+  try cat *tsv 2>/dev/null | sed 's/\,//g' | sed 's/\;//g' | sed 's/	/,/g' >>blast_out.csv
+  yell "Blast results located at \"blast_out.csv\"."
+fi
 
 ###TODO###
 #yell "Extracting relevant information from results ..."
