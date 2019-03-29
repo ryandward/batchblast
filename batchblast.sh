@@ -398,11 +398,11 @@ else
   done
 
   yell "${COUNT} files with .tsv extension."
-  echo "#q_sampleid,#q_primer,#q_seqid,#s_title,#s_acc,#s_seqid,#pident,#q_length,#s_length,#evalue,#bitscore,#q_genus,#q_species,#q_strain" >blast_out.csv
   yell "Concatenating results."
-  try cat *tsv 2>/dev/null | sed 's/\,//g' | sed 's/\;//g' | sed 's/	/,/g' >>blast_out.csv
+  echo "Query,Subject Title,Subject Accession,Subject Sequence ID,Percent Identical,Query Length,Subject Length,E Value,Bitscore,Number,Genus,Species,Strain" >blast_out.csv
+  try cat *tsv 2>/dev/null | awk 'BEGIN { FS="\t"; OFS="," } {rebuilt=0; for(i=1; i<=NF; ++i) {if ($i ~ /,/ && $i !~ /^".*"$/) { $i = "\"" $i "\"";rebuilt=1 }}  if (!rebuilt) { $1=$1 }print}' >>blast_out.csv
   yell "Blast results located at \"blast_out.csv\"."
-  
+
 fi
 
 ###TODO###
