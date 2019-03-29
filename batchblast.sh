@@ -138,7 +138,7 @@ fi
 
 cd "$WORKDIR";
 
-try for x in $(ls); do dos2unix $x; done;
+for x in $(ls); do dos2unix $x; done;
 
 if [ $INPUT = "ab1" ]; then
   STEP="EMBOSS:"
@@ -402,10 +402,12 @@ else
 
   done
 
+  for x in $(ls); do dos2unix $x; done;
+
   yell "${COUNT} files with .tsv extension."
   yell "Concatenating results."
   echo "Query,Subject Title,Subject Accession,Accession URL,FASTA URL,Percent Identical,Query Length,Subject Length,E Value,Bitscore" >blast_out.csv
-  try cat *tsv 2>/dev/null | awk 'BEGIN { FS="\t"; OFS="," } {rebuilt=0; for(i=1; i<=NF; ++i) {if ($i ~ /,/ && $i !~ /^".*"$/) { $i = "\"" $i "\"";rebuilt=1 }}  if (!rebuilt) { $1=$1 }print}' | awk 'BEGIN{OFS=",";FPAT = "([^,]+)|(\"[^\"]+\")"}NR!=1{split ($4,pieces,"|"); $4="=HYPERLINK(\"https://www.ncbi.nlm.nih.gov/nuccore/"pieces[2]"\""",=HYPERLINK(\"https://www.ncbi.nlm.nih.gov/nuccore/"pieces[4]"?report=fasta\")"; $1=$1; print}' >> tmp.csv
+  try cat *tsv 2>/dev/null | awk 'BEGIN { FS="\t"; OFS="," } {rebuilt=0; for(i=1; i<=NF; ++i) {if ($i ~ /,/ && $i !~ /^".*"$/) { $i = "\"" $i "\"";rebuilt=1 }}  if (!rebuilt) { $1=$1 }print}' | awk 'BEGIN{OFS=",";FPAT = "([^,]+)|(\"[^\"]+\")"}NR!=1{split ($4,pieces,"|"); $4="=HYPERLINK(\"https://www.ncbi.nlm.nih.gov/nuccore/"pieces[2]"\""",=HYPERLINK(\"https://www.ncbi.nlm.nih.gov/nuccore/"pieces[4]"?report=fasta\")"; $1=$1; print}' >> blast_out.csv
   yell "Blast results located at \"blast_out.csv\"."
 
 fi
