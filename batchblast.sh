@@ -1,4 +1,4 @@
-WORKDIR="/home/ryanward/Dropbox/Hutten/Blast_Fun"
+WORKDIR="/home/ryanward/Dropbox/Pietrasiak/Illumina_JGI/P25268_NMSU_RW1"
 STEP="Setup:"
 #Setup commands.
 yell() { printf ["%s\n" "${0##*/}] ${STEP} ${STATUS} $*" | tr -s / >&2; }
@@ -374,7 +374,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
 
 fi
 
-STEP="POST-PROCESS:"
+STEP="Data Query:"
 COUNT=$(ls -1 *.tsv 2>/dev/null | wc -l | tr -d ' ')
 fa_COUNT=$(ls -1 *.fa 2>/dev/null | wc -l | tr -d ' ')
 STATUS="Found:"
@@ -405,9 +405,51 @@ else
   for x in $(ls); do dos2unix $x; done;
 
   yell "${COUNT} files with .tsv extension."
-  yell "Concatenating results."
-  echo "Query,Subject Title,Subject Accession,Accession URL,FASTA URL,Percent Identical,Query Length,Subject Length,E Value,Bitscore" >blast_out.csv
-  try cat *tsv 2>/dev/null | awk 'BEGIN { FS="\t"; OFS="," } {rebuilt=0; for(i=1; i<=NF; ++i) {if ($i ~ /,/ && $i !~ /^".*"$/) { $i = "\"" $i "\"";rebuilt=1 }}  if (!rebuilt) { $1=$1 }print}' | awk 'BEGIN{OFS=",";FPAT = "([^,]+)|(\"[^\"]+\")"}NR!=1{split ($4,pieces,"|"); $4="=HYPERLINK(\"https://www.ncbi.nlm.nih.gov/nuccore/"pieces[2]"\""",=HYPERLINK(\"https://www.ncbi.nlm.nih.gov/nuccore/"pieces[4]"?report=fasta\")"; $1=$1; print}' >> blast_out.csv
+  yell "Gathering data from taxonomy.jgi-psf.org, this may take a while."
+  echo "Query,Subject Title,Subject Accession,Accession FASTA URL,Species,Strain,Percent Identical,Query Length,Subject Length,E Value,Bitscore" >blast_out.csv
+  try cat *tsv 2>/dev/null |
+  awk 'BEGIN {
+    FS="\t";
+    OFS=","
+  } {
+    rebuilt=0;
+    for(i=1; i<=NF; ++i) {
+      if ($i ~ /,/ && $i !~ /^".*"$/) {
+        $i = "\"" $i "\"";
+        rebuilt=1
+      }
+    }
+    if (!rebuilt) {
+      $1=$1
+    }
+    print
+  }' |
+  awk '
+    BEGIN{
+      OFS=",";
+      FPAT = "([^,]+)|(\"[^\"]+\")"
+    }
+    NR!=1 {
+      curl="curl -s http://taxonomy.jgi-psf.org/tax/accession/"$3" | jq ."$3".species.name"
+      curl | getline species;
+      close(curl);
+
+      $5 = species;
+
+
+      if (out = "null"){
+        curl="curl -s http://taxonomy.jgi-psf.org/tax/accession/"$3" | jq ."$3".strain.name"
+        curl | getline strain;
+        close(curl);
+      }
+
+      $4="=HYPERLINK(\"https://www.ncbi.nlm.nih.gov/nuccore/"$3"?report=fasta\")";
+      $5 = species;
+      $6 = strain;
+
+      print $0;
+    }' |
+    tee -a blast_out.csv
   yell "Blast results located at \"blast_out.csv\"."
 
 fi
