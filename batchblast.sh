@@ -1,4 +1,3 @@
-WORKDIR="/home/ryanward/Dropbox/Pietrasiak/Illumina_JGI/P25268_NMSU_RW1"
 STEP="Setup:"
 #Setup commands.
 yell() { printf ["%s\n" "${0##*/}] ${STEP} ${STATUS} $*" | tr -s / >&2; }
@@ -23,6 +22,7 @@ probe seqret
 probe blastn
 probe git
 probe timeout
+probe dos2unix
 
 body() {
   IFS= read -r header
@@ -30,10 +30,10 @@ body() {
   "$@"
 }
 
-OPTIONS=$(getopt -o :i:n:h -l input:,number:,help -- "$@")
+OPTIONS=$(getopt -o :i:n:w:h -l input:,number:,workdir:,help -- "$@")
 
 usage() {
-  die "Error: Usage: $0 -i [ab1/fastq/fasta] -n [MAX_TARGET_SEQS (>1)]."
+  die "Error: Usage: $0 -i [ab1/fastq/fasta] -n [target sequences] -w [work directory]."
 }
 
 if [ $? -ne 0 ]; then
@@ -47,6 +47,10 @@ while true; do
   case "$1" in
   -i | --input)
     INPUT="$2"
+    shift
+    ;;
+  -w | --workdir)
+    WORKDIR="$2"
     shift
     ;;
   -n | --number)
@@ -83,11 +87,23 @@ fi
 if [ $INPUT != "ab1" ] && [ $INPUT != "fastq" ] && [ $INPUT != "fasta" ]; then
   STATUS="Error:"
   die "input flag [-i] must be ab1, fastq, or fasta."
+else
+  STATUS="Variable:"
+  yell "input set to ${INPUT}."
+fi
+
+if [ -z $WORKDIR ]; then
+
+  STATUS="Error:"
+  die "Work directory flag [-w] cannot be blank."
 
 else
 
   STATUS="Variable:"
-  yell "input set to ${INPUT}."
+  yell "Workdir set to ${WORKDIR}."
+  ls "$WORKDIR" >/dev/null || die "Could not find $WORKDIR"
+  for x in $(ls $WORKDIR); do dos2unix &>/dev/null $x; done;
+
 fi
 
 if [[ $MAX_TARGET_SEQS -gt 100 ]]; then
@@ -138,7 +154,6 @@ fi
 
 cd "$WORKDIR";
 
-for x in $(ls); do dos2unix $x; done;
 
 if [ $INPUT = "ab1" ]; then
   STEP="EMBOSS:"
@@ -150,7 +165,7 @@ if [ $INPUT = "ab1" ]; then
     die "No .ab1 file extensions in directory. Move them here to get started."
 
   else
-    STATUS="Found:":
+    STATUS="Found":
     yell "${COUNT} files with .ab1 extension."
 
     for x in $(ls *ab1); do
@@ -402,7 +417,7 @@ else
 
   done
 
-  for x in $(ls); do dos2unix $x; done;
+  for x in $(ls); do dos2unix &>/dev/null $x; done;
 
   yell "${COUNT} files with .tsv extension."
   yell "Gathering data from taxonomy.jgi-psf.org, this may take a while."
@@ -436,7 +451,6 @@ else
 
       $5 = species;
 
-
       if (out = "null"){
         curl="curl -s http://taxonomy.jgi-psf.org/tax/accession/"$3" | jq ."$3".strain.name"
         curl | getline strain;
@@ -453,10 +467,3 @@ else
   yell "Blast results located at \"blast_out.csv\"."
 
 fi
-
-###TODO###
-#yell "Extracting relevant information from results ..."
-#try cat blast_out.csv 2>/dev/null | try body awk -vFS=, -vOFS=, '(NR!=1){match($1,/_([0-9]{1,2})[A-z]?_Pri/,sample);match ($1,/(Primer.*)/,primer); { print sample[1], primer[1],$0}}' > tmp.csv
-#yell $"Using ${STRAIN_DEFINITIONS} as source to extract query submission genus and species ..."
-#try awk -vFS=, -vOFS=, '(NR==FNR){gen[$1]=$2;spec[$1]=$3;strain[$1]=$4;next;} (NR!=FNR) {if(FNR==1) print $0} {if(FNR!=1){print $0,gen[$1],spec[$1],strain[$1]} }' ${STRAIN_DEFINITIONS} tmp.csv > blast_out.csv 2>/dev/null && try rm tmp.csv 2>/dev/null
-#paste -d, <( ${selefile} "col=q_sampleid,q_primer,q_genus,q_species,q_strain" blast_out.csv) <( ${selefile}  "col=s_" blast_out.csv) > tmp.csv
