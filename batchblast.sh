@@ -16,7 +16,7 @@ exit_abnormal() {
 
 #Make sure all commands work
 STATUS="Probe:"
-realpath "$0"
+BLASTPATH="$(realpath "$0")"
 probe perl
 probe seqret
 probe blastn
@@ -330,7 +330,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
         else
           STATUS="($PROGRESS/$COUNT) Blasting:"
           yell "${x}."
-          timeout --foreground 2m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
+          timeout --foreground 1m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
 
             while read line; do
               STATUS="NCBI returned:"
@@ -351,7 +351,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
           yell "${OUTFILE} size: ${OUTSIZE} lines. Attempting to fix."
           STATUS="($PROGRESS/$COUNT) Blasting:"
           yell "${x}."
-          timeout --foreground 2m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
+          timeout --foreground 1m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
 
             while read line; do
               STATUS="($PROGRESS/$COUNT) NCBI returned:"
@@ -396,7 +396,7 @@ STATUS="Found:"
 
 if [ $COUNT != $fa_COUNT ]; then
   STATUS="Error:"
-  die "Quantity mismatch of output (.tsv) and input (.fa) files. Please rerun this script."
+  exec "$BLASTPATH $@" && die "Quantity mismatch of output (.tsv) and input (.fa) files. This script will rerun."
 
 else
 
@@ -409,7 +409,7 @@ else
       if [ "$INSIZE" -lt "$MAX_TARGET_SEQS" ]; then
 
         STATUS="Error:"
-        die "${x} output .tsv file is not ${MAX_TARGET_SEQS} in length, incomplete or corrupt data. Rerun this script."
+        exec "$0 $@" && die "${x} output .tsv is smaller than expected. This script will rerun."
 
       fi
 
