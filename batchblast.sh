@@ -14,9 +14,15 @@ exit_abnormal() {
   exit 1
 }
 
+
 #Make sure all commands work
 STATUS="Probe:"
 BLASTPATH="$(realpath "$0")"
+BLASTDIR="$(dirname "$BLASTPATH")"
+ARGS="$@"
+
+echo "$BLASTPATH $ARGS"
+
 probe perl
 probe seqret
 probe blastn
@@ -45,28 +51,28 @@ eval set -- $OPTIONS
 
 while true; do
   case "$1" in
-  -i | --input)
+    -i | --input)
     INPUT="$2"
     shift
     ;;
-  -w | --workdir)
+    -w | --workdir)
     WORKDIR="$2"
     shift
     ;;
-  -n | --number)
+    -n | --number)
     MAX_TARGET_SEQS="$2"
     shift
     ;;
-  -h | --help)
+    -h | --help)
     usage
     shift
     exit 0
     ;;
-  --)
+    --)
     shift
     break
     ;;
-  *)
+    *)
     usage
     exit 1
     ;;
@@ -330,15 +336,19 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
         else
           STATUS="($PROGRESS/$COUNT) Blasting:"
           yell "${x}."
-          timeout --foreground 1m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
+          timeout --foreground 10m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
 
-            while read line; do
-              STATUS="NCBI returned:"
-              yell $line
+          while read line; do
+            STATUS="NCBI returned:"
+            yell $line
 
-            done
+          done
 
-            STATUS="($PROGRESS/$COUNT) Blasting:"
+          yell "${OUTFILE}, size: ${newOUTSIZE} lines."
+          yell "Pausing..."
+          sleep 300
+
+          STATUS="($PROGRESS/$COUNT) Blasting:"
 
         fi
 
@@ -351,13 +361,16 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
           yell "${OUTFILE} size: ${OUTSIZE} lines. Attempting to fix."
           STATUS="($PROGRESS/$COUNT) Blasting:"
           yell "${x}."
-          timeout --foreground 1m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
+          timeout --foreground 10m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
 
-            while read line; do
-              STATUS="($PROGRESS/$COUNT) NCBI returned:"
-              yell $line
+          while read line; do
+            STATUS="($PROGRESS/$COUNT) NCBI returned:"
+            yell $line
 
-            done
+          done
+          yell "${OUTFILE}, size: ${newOUTSIZE} lines."
+          yell "Pausing..."
+          sleep 300
 
           STATUS="($PROGRESS/$COUNT) Blasting:"
 
@@ -367,10 +380,6 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
             STATUS="($PROGRESS/$COUNT) Warning:"
             yell "Unable to initialize ${OUTFILE}, probable NCBI network throttle."
             STATUS="($PROGRESS/$COUNT) Blasting:"
-
-          else
-
-            yell "Completed ${OUTFILE}, size: ${newOUTSIZE} lines."
 
           fi
 
@@ -396,7 +405,7 @@ STATUS="Found:"
 
 if [ $COUNT != $fa_COUNT ]; then
   STATUS="Error:"
-  exec "$BLASTPATH $@" && die "Quantity mismatch of output (.tsv) and input (.fa) files. This script will rerun."
+  exec $BLASTPATH $ARGS && die "Quantity mismatch of output (.tsv) and input (.fa) files. This script will rerun."
 
 else
 
@@ -409,7 +418,7 @@ else
       if [ "$INSIZE" -lt "$MAX_TARGET_SEQS" ]; then
 
         STATUS="Error:"
-        exec "$0 $@" && die "${x} output .tsv is smaller than expected. This script will rerun."
+        exec $BLASTPATH $ARGS && die "${x} output .tsv is smaller than expected. This script will rerun."
 
       fi
 
@@ -423,47 +432,9 @@ else
   yell "Gathering data from taxonomy.jgi-psf.org, this may take a while."
   echo "Query,Subject Title,Subject Accession,Accession FASTA URL,Species,Strain,Percent Identical,Query Length,Subject Length,E Value,Bitscore" >blast_out.csv
   try cat *tsv 2>/dev/null |
-  awk 'BEGIN {
-    FS="\t";
-    OFS=","
-  } {
-    rebuilt=0;
-    for(i=1; i<=NF; ++i) {
-      if ($i ~ /,/ && $i !~ /^".*"$/) {
-        $i = "\"" $i "\"";
-        rebuilt=1
-      }
-    }
-    if (!rebuilt) {
-      $1=$1
-    }
-    print
-  }' |
-  awk '
-    BEGIN{
-      OFS=",";
-      FPAT = "([^,]+)|(\"[^\"]+\")"
-    }
-    NR!=1 {
-      curl="curl -s http://taxonomy.jgi-psf.org/tax/accession/"$3" | jq ."$3".species.name"
-      curl | getline species;
-      close(curl);
-
-      $5 = species;
-
-      if (out = "null"){
-        curl="curl -s http://taxonomy.jgi-psf.org/tax/accession/"$3" | jq ."$3".strain.name"
-        curl | getline strain;
-        close(curl);
-      }
-
-      $4="=HYPERLINK(\"https://www.ncbi.nlm.nih.gov/nuccore/"$3"?report=fasta\")";
-      $5 = species;
-      $6 = strain;
-
-      print $0;
-    }' |
-    tee -a blast_out.csv
+  exec "$BLASTDIR/rebuild.awk" |
+  exec "$BLASTDIR/extract.awk" |
+  tee -a blast_out.csv
   yell "Blast results located at \"blast_out.csv\"."
 
 fi
