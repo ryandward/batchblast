@@ -21,8 +21,6 @@ BLASTPATH="$(realpath "$0")"
 BLASTDIR="$(dirname "$BLASTPATH")"
 ARGS="$@"
 
-echo "$BLASTPATH $ARGS"
-
 probe perl
 probe seqret
 probe blastn
@@ -139,7 +137,7 @@ fi
 
 STRAIN_DEFINITIONS=/home/ryanward/Dropbox/Pietrasiak/JGI_strains.csv
 
-trim=$(ls -1 **/*trimmomatic*jar 2>/dev/null | wc -l | tr -d ' ')
+trim=$(ls -1 $BLASTDIR/**/*trimmomatic*jar 2>/dev/null | wc -l | tr -d ' ')
 
 if [ $trim = 0 ]; then
   STATUS="Warning:"
@@ -336,17 +334,22 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
         else
           STATUS="($PROGRESS/$COUNT) Blasting:"
           yell "${x}."
-          timeout --foreground 10m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
+          timeout --foreground 3m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
 
           while read line; do
             STATUS="NCBI returned:"
             yell $line
 
+            if [[ $line == *"failed"* ]] || [[ $line == *"Failed"* ]]; then
+              ps -ef | grep $x | grep $USER | grep timeout | grep -v grep | awk '{print $2}' | xargs kill && break
+            fi
+
+
           done
 
           yell "${OUTFILE}, size: ${newOUTSIZE} lines."
           yell "Pausing..."
-          sleep 300
+          sleep 60
 
           STATUS="($PROGRESS/$COUNT) Blasting:"
 
@@ -361,16 +364,20 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
           yell "${OUTFILE} size: ${OUTSIZE} lines. Attempting to fix."
           STATUS="($PROGRESS/$COUNT) Blasting:"
           yell "${x}."
-          timeout --foreground 10m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
+          timeout --foreground 3m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
 
           while read line; do
             STATUS="($PROGRESS/$COUNT) NCBI returned:"
             yell $line
 
+            if [[ $line == *"failed"* ]] || [[ $line == *"Failed"* ]]; then
+              ps -ef | grep $x | grep $USER | grep timeout | grep -v grep | awk '{print $2}' | xargs kill && break
+            fi
+
           done
           yell "${OUTFILE}, size: ${newOUTSIZE} lines."
           yell "Pausing..."
-          sleep 300
+          sleep 60
 
           STATUS="($PROGRESS/$COUNT) Blasting:"
 
