@@ -48,7 +48,9 @@
 #     5 - unknown error
 #
 # ===========================================================================
-
+use strict;
+use warnings;
+use 5.028;
 use URI::Escape;
 use LWP::UserAgent;
 use HTTP::Request::Common qw(POST);
@@ -93,7 +95,6 @@ foreach $query (@ARGV)
 
 # build the request
 $args = "CMD=Put&PROGRAM=$program&DATABASE=$database&QUERY=" . $encoded_query;
-print $args;
 $req = new HTTP::Request POST => 'https://blast.ncbi.nlm.nih.gov/blast/Blast.cgi';
 $req->content_type('application/x-www-form-urlencoded');
 $req->content($args);
@@ -142,7 +143,7 @@ while (true)
         {
         if ($response->content =~ /\s+ThereAreHits=yes/m)
             {
-            #  print STDERR "Search complete, retrieving results...\n";
+            print STDERR "Search complete, retrieving results...\n";
             last;
             }
         else

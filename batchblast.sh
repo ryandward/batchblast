@@ -437,7 +437,7 @@ else
 
   yell "${COUNT} files with .tsv extension."
   yell "Gathering data from taxonomy.jgi-psf.org, this may take a while."
-  echo "Query,Subject Title,Subject Accession,Accession FASTA URL,Species,Strain,Percent Identical,Query Length,Subject Length,E Value,Bitscore" >blast_out.csv
+  echo "Query Name","Target Accession","Target Genus","Target Species","Target Strain","Identical","Query Length","Target Length","E-Value","Bitscore","Fasta","Target Description","Reported Taxonomic Name" > blast_out.csv
   try cat *tsv 2>/dev/null |
   exec "$BLASTDIR/rebuild.awk" |
   exec "$BLASTDIR/extract.awk" |
