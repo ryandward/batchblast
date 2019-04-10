@@ -8,7 +8,7 @@ BEGIN{
   tax = ""
 
   while (tax==""){
-    curl[NR]="curl -s http://taxonomy.jgi-psf.org/tax/accession/"$3" | jq .[][.[].level].name"
+    curl[NR]="curl -s http://taxonomy.jgi-psf.org/tax/accession/"$3" | jq .[][.[].level].name || echo NULL NULL"
     curl[NR] | getline tax;
     close(curl[NR]);
 

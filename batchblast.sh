@@ -54,7 +54,7 @@ while true; do
     shift
     ;;
     -w | --workdir)
-    WORKDIR="$2"
+    WORKDIR="$(realpath $2)"
     shift
     ;;
     -n | --number)
@@ -102,7 +102,6 @@ if [ -z $WORKDIR ]; then
   die "Work directory flag [-w] cannot be blank."
 
 else
-
   STATUS="Variable:"
   yell "Workdir set to ${WORKDIR}."
   ls "$WORKDIR" >/dev/null || die "Could not find $WORKDIR"
@@ -137,7 +136,9 @@ fi
 
 STRAIN_DEFINITIONS=/home/ryanward/Dropbox/Pietrasiak/JGI_strains.csv
 
-trim=$(ls -1 $BLASTDIR/**/*trimmomatic*jar 2>/dev/null | wc -l | tr -d ' ')
+cd "$BLASTDIR"
+
+trim=$(ls -1 **/*trimmomatic*jar 2>/dev/null | wc -l | tr -d ' ')
 
 if [ $trim = 0 ]; then
   STATUS="Warning:"
@@ -157,7 +158,6 @@ else
 fi
 
 cd "$WORKDIR";
-
 
 if [ $INPUT = "ab1" ]; then
   STEP="EMBOSS:"
@@ -240,7 +240,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]; then
 
         else
           STATUS="($PROGRESS/$COUNT) Completed:"
-          java -jar ${TRIMFILE} SE -phred64 ${x} ${OUTFILE} LEADING:14 TRAILING:14 2>/dev/null
+          java -jar ${TRIMFILE} SE -phred33 ${x} ${OUTFILE} LEADING:10 TRAILING:10 SLIDINGWINDOW:4:8 MINLEN:100 2>/dev/null
 
         fi
 
@@ -250,7 +250,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ]; then
 
       if [ "$OUTSIZE" = "0" ]; then
         yell "${OUTFILE}: incomplete or corrupt... Re-trimming."
-        java -jar ${TRIMFILE} SE -phred64 ${x} ${OUTFILE} LEADING:14 TRAILING:14 2>/dev/null
+        java -jar ${TRIMFILE} SE -phred33 ${x} ${OUTFILE} LEADING:10 TRAILING:10 SLIDINGWINDOW:4:8 MINLEN:100 2>/dev/null
         newOUTSIZE=$(cat $OUTFILE | wc -l | tr -d ' ')
         STATUS="($PROGRESS/$COUNT) Completed:"
 
@@ -334,7 +334,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
         else
           STATUS="($PROGRESS/$COUNT) Blasting:"
           yell "${x}."
-          timeout --foreground 3m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
+          timeout --foreground 5m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
 
           while read line; do
             STATUS="NCBI returned:"
@@ -342,11 +342,13 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
 
             if [[ $line == *"failed"* ]] || [[ $line == *"Failed"* ]]; then
               ps -ef | grep $x | grep $USER | grep timeout | grep -v grep | awk '{print $2}' | xargs kill && break
+
             fi
 
 
           done
 
+          STATUS="($PROGRESS/$COUNT) Result:"
           yell "${OUTFILE}, size: ${newOUTSIZE} lines."
           yell "Pausing..."
           sleep 60
@@ -364,7 +366,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
           yell "${OUTFILE} size: ${OUTSIZE} lines. Attempting to fix."
           STATUS="($PROGRESS/$COUNT) Blasting:"
           yell "${x}."
-          timeout --foreground 3m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
+          timeout --foreground 5m blastn -db nt -query $x -remote -max_target_seqs=${MAX_TARGET_SEQS} -out $OUTFILE -outfmt "6 qseqid stitle sacc sseqid pident qlen length evalue bitscore" 2>&1 |
 
           while read line; do
             STATUS="($PROGRESS/$COUNT) NCBI returned:"
@@ -372,9 +374,12 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
 
             if [[ $line == *"failed"* ]] || [[ $line == *"Failed"* ]]; then
               ps -ef | grep $x | grep $USER | grep timeout | grep -v grep | awk '{print $2}' | xargs kill && break
+
             fi
 
           done
+
+          STATUS="($PROGRESS/$COUNT) Result:"
           yell "${OUTFILE}, size: ${newOUTSIZE} lines."
           yell "Pausing..."
           sleep 60
@@ -385,7 +390,7 @@ if [ $INPUT = "ab1" ] || [ $INPUT = "fastq" ] || [ $INPUT = "fasta" ]; then
 
           if [ "$newOUTSIZE" = "0" ]; then
             STATUS="($PROGRESS/$COUNT) Warning:"
-            yell "Unable to initialize ${OUTFILE}, probable NCBI network throttle."
+            yell "Unable to initialize ${OUTFILE}"
             STATUS="($PROGRESS/$COUNT) Blasting:"
 
           fi
