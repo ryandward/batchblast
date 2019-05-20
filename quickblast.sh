@@ -46,7 +46,6 @@ while true; do
     probe blastn
     probe timeout
     probe jq
-    probe trimmomatic
 
     exit 0;
     shift
