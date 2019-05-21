@@ -1,5 +1,6 @@
-STEP="Setup:"
 #Setup commands.
+
+STEP="Setup:"
 
 yell() { printf ["%s\n" "${0##*/}] ${STEP} ${STATUS} $*" | tr -s / >&2; }
 die() {
@@ -7,7 +8,7 @@ die() {
   exit 111
 }
 try() { (yell "Trying: $*" && "$@") || die "Failed: $*"; }
-probe() { command -v "$@" >/dev/null 2>&1 && yell "Found: $*" || die >&2 "This script requires \""$*"\". Try loading the module, or installing it locally."; }
+probe() { (command -v "$@" >/dev/null 2>&1 && STATUS="Found:" && yell "$*") || (STATUS="Dependency Failure:" && die >&2 "This script requires \""$*"\". Try loading the module, or installing it locally.") }
 realpath() { [[ $1 == /* ]] && echo "$1" || echo "$PWD/${1#./}"; }
 usage() {
   die "Usage: $0 -n [target sequences] -w [work directory] -r [check for reqs]."
@@ -68,6 +69,13 @@ while true; do
   shift
 done
 
+probe git
+probe wget
+probe dos2unix
+probe blastn
+probe timeout
+probe jq
+
 INPUT="fasta";
 
 if [ ! -z "$@" ]; then
@@ -105,7 +113,7 @@ if [[ ! $MAX_TARGET_SEQS =~ ^[1-9][0-9]*$ ]]; then
   invalid_value=$MAX_TARGET_SEQS
   MAX_TARGET_SEQS=10
 
-  yell "defaulting MAX_TARGET_SEQS to ${MAX_TARGET_SEQS}, was ${invalid_value}."
+  yell "Defaulting maximum target sequences to ${MAX_TARGET_SEQS}, was ${invalid_value}."
 
 else
   yell "MAX_TARGET_SEQS is ${MAX_TARGET_SEQS}."
