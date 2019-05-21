@@ -133,11 +133,16 @@ body() {
 }
 
 cd "$WORKDIR";
+mkdir quickblast_tmp 2>/dev/null
+cd quickblast_tmp || die
+WORKDIR=$(realpath .)
+
+awk 'BEGIN{RS=">";count=1} $0~/[A-z]/{print ">"$0 > "seq_"count".fa";count++}' ../*.fa* 2>/dev/null
 
   STEP="BlastN:"
   PROGRESS=0;
 
-  COUNT=$(ls -1 *.fa 2>/dev/null | wc -l | tr -d ' ')
+  COUNT=$(ls -1 *.fa* 2>/dev/null | wc -l | tr -d ' ')
 
   if [ $COUNT = 0 ]; then
     STATUS="Error:"
@@ -275,6 +280,7 @@ else
   exec "$BLASTDIR/rebuild.awk" |
   exec "$BLASTDIR/extract.awk" |
   tee -a blast_out.csv
+  mv blast_out.csv ../
   yell "Blast results located at \"blast_out.csv\"."
 
 fi
