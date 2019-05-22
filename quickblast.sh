@@ -8,7 +8,7 @@ die() {
   exit 111
 }
 try() { (yell "Trying: $*" && "$@") || die "Failed: $*"; }
-probe() { command -v "$@" >/dev/null 2>&1 && yell "Found: $*" || die >&2 "This script requires \""$*"\", but it's not installed."; }
+probe() { command -v "$@" >/dev/null 2>&1 && yell "Found: $*" || die >&2 "This script requires \""$*"\", but it's not installed. Try loading the module"; }
 realpath() { [[ $1 == /* ]] && echo "$1" || echo "$PWD/${1#./}"; }
 usage() {
   die "Usage: $0 -n [target sequences] -w [work directory] -r [check for reqs]."
@@ -41,12 +41,14 @@ while true; do
     ;;
     -r | --reqs)
 
-    probe git || die
-    probe wget || die
-    probe dos2unix || die
-    probe blastn || die
-    probe timeout || die
-    probe jq || die
+    yell "Probing capability for git, wget, dos2unix, blast, timeout, and jq."
+
+    probe git
+    probe wget
+    probe dos2unix
+    probe blastn
+    probe timeout
+    probe jq 
 
     exit 0;
     shift
