@@ -41,12 +41,12 @@ while true; do
     ;;
     -r | --reqs)
 
-    probe git
-    probe wget
-    probe dos2unix
-    probe blastn
-    probe timeout
-    probe jq
+    probe git || die
+    probe wget || die
+    probe dos2unix || die
+    probe blastn || die
+    probe timeout || die
+    probe jq || die
 
     exit 0;
     shift
