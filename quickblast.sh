@@ -8,7 +8,7 @@ die() {
   exit 111
 }
 try() { (yell "Trying: $*" && "$@") || die "Failed: $*"; }
-probe() { (command -v "$@" >/dev/null 2>&1 && STATUS="Found:" && yell "$*") || (STATUS="Dependency Failure:" && die >&2 "This script requires \""$*"\". Try loading the module, or installing it locally.") }
+probe() { command -v "$@" >/dev/null 2>&1 && yell "Found: $*" || die >&2 "This script requires \""$*"\", but it's not installed."; }
 realpath() { [[ $1 == /* ]] && echo "$1" || echo "$PWD/${1#./}"; }
 usage() {
   die "Usage: $0 -n [target sequences] -w [work directory] -r [check for reqs]."
@@ -240,8 +240,6 @@ awk 'BEGIN{RS=">";count=1} $0~/[A-z]/{print ">"$0 > "seq_"count".fa";count++}' .
     done
 
   fi
-
-fi
 
 STEP="Data Query:"
 COUNT=$(ls -1 *.tsv 2>/dev/null | wc -l | tr -d ' ')
