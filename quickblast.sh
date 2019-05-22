@@ -48,7 +48,7 @@ while true; do
     probe dos2unix
     probe blastn
     probe timeout
-    probe jq 
+    probe jq
 
     exit 0;
     shift
@@ -71,8 +71,10 @@ while true; do
   shift
 done
 
+yell "Probing capability for git, wget, dos2unix, blast, timeout, and jq."
+
 probe git
-probe wget
+probe wget 
 probe dos2unix
 probe blastn
 probe timeout
