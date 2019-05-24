@@ -41,12 +41,12 @@ while true; do
     ;;
     -r | --reqs)
 
-    yell "Probing capability for git, wget, dos2unix, blast, timeout, and jq."
+    yell "Probing capability for git, wget, dos2unix, blast-plus, timeout, and jq."
 
     probe git
     probe wget
     probe dos2unix
-    probe blastn
+    probe blastn || yell "Try loading blast-plus if blastn standalone does not work."
     probe timeout
     probe jq
 
@@ -71,12 +71,12 @@ while true; do
   shift
 done
 
-yell "Probing capability for git, wget, dos2unix, blast, timeout, and jq."
+yell "Probing capability for git, wget, dos2unix, blast-plus, timeout, and jq."
 
 probe git
-probe wget 
+probe wget
 probe dos2unix
-probe blastn
+probe blastn || yell "Try loading blast-plus if blastn standalone does not work."
 probe timeout
 probe jq
 
