@@ -1,6 +1,8 @@
 #Setup commands.
 
 STEP="Setup:"
+RED='\033[1;31m'
+NC='\033[0m' # No Color
 
 yell() { printf ["%s\n" "${0##*/}] ${STEP} ${STATUS} $*" | tr -s / >&2; }
 die() {
@@ -283,6 +285,14 @@ else
   exec "$BLASTDIR/extract.awk" |
   tee -a blast_out.csv
   mv blast_out.csv ../
-  yell "Blast results located at \"blast_out.csv\"."
+
+  STEP="Finish:"
+  STATUS="Notes:"
+  echo -e "${RED}-----Please read the following before continuing-----${NC}"
+  yell "Blast results located at $(realpath blast_out.csv)."
+  yell "Genus, species, and strainare scraped from the taxonomy declared by the author."
+  yell "If genus and species are NULL, the JGI taxonomy server did not respond to HTTP requests."
+  yell "You may rerun this script at any time using cached blast files, for a much faster run."
+  yell "If the script completed, subsequent runs will decode taxonomy based on accession number."
 
 fi
