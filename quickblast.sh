@@ -290,7 +290,7 @@ else
   STATUS="Notes:"
   echo -e "${RED}-----Please read the following before continuing-----${NC}"
   yell "Blast results located at $(realpath blast_out.csv)."
-  yell "Genus, species, and strainare scraped from the taxonomy declared by the author."
+  yell "Genus, species, and strain are scraped from the taxonomy declared by the author."
   yell "If genus and species are NULL, the JGI taxonomy server did not respond to HTTP requests."
   yell "You may rerun this script at any time using cached blast files, for a much faster run."
   yell "If the script completed, subsequent runs will decode taxonomy based on accession number."
